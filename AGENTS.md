@@ -1,13 +1,24 @@
 # AI AGENT GUIDE
 
+## DesignGate fork overrides (take precedence over everything below, `.serena/memories` and `.agents/skills`)
+
+This repo is DesignGate, a public fork of Penpot (branch `designgate`, upstream remote `upstream` = penpot/penpot).
+Agents run under an orchestrator; these rules replace the upstream ones where they conflict.
+
+- **Git:** agents may commit, push branches and open PRs. No force-push to `designgate`, no history rewrite
+  of pushed shared branches, no remote changes.
+- **Commits/PRs:** no `AI-assisted-by` trailer and no AI note in PRs. Other `check-commit` rules still apply.
+- **Database:** the local devenv database (`scripts/psql`, `penpot-psql`) is free to read, write and reset.
+  Production is out of scope: no prod hosts, credentials or data in this repo or in agent commands.
+- **Public repo:** never commit secrets, `.env` values, server addresses or dumps. Operator state lives
+  outside the repo (`../STATE.md`); do not create a STATE.md here.
+- **Branding:** user-visible text says DesignGate, not Penpot (the `.penpot` file extension stays).
+  Do not add calls to penpot.app or other third-party hosts. The current rebrand is applied as build-time
+  patches in `../rebrand/`; porting it into source is pending.
+- **Upstream-only triggers below** (`penpot/penpot` issues, advisories) still refer to upstream.
+
 ## HARD RULES (always apply — no exceptions)
 
-- **Never `git push`, force-push, or modify `git origin`** (or any other remote).
-  The user pushes from their own shell. If a push is required to surface the
-  agent's work (e.g. force-push after an amend), state this in the response and
-  wait for the user to push. Do not change the remote URL, do not switch SSH↔HTTPS.
-- **Never amend a commit that has been pushed** unless the user explicitly asks.
-  If the user pushes, treat that commit as final from the agent's side.
 - **Never edit `CHANGES.md` by hand** in commits or PRs. The changelog is
   generated from GitHub milestones during the release process; update it only
   via the `update-changelog` skill flow or on explicit user request.
@@ -21,9 +32,9 @@
   the commit MUST pass `./scripts/check-commit` with exit code 0 before you
   consider it done. This is mechanically checked — do not eyeball it.
 - **Read the workflow memory BEFORE the corresponding action**:
-  - Before `git commit` → `mem:workflow/creating-commits` (commit format, AI-assisted-by trailer)
+  - Before `git commit` → `mem:workflow/creating-commits` (commit format; no AI trailer, see overrides)
   - Before `gh issue create` → `mem:workflow/creating-issues` (title derivation, body template, Issue Type)
-  - Before `gh pr create` / `gh pr edit` → `mem:workflow/creating-prs` (title format, body structure, AI note)
+  - Before `gh pr create` / `gh pr edit` → `mem:workflow/creating-prs` (title format, body structure; no AI note)
   Don't infer format from the title of a previous commit/issue/PR — the memory
   is the source of truth.
 

@@ -96,7 +96,8 @@ opencode.json
 /.vscode
 /.idea
 *.iml
-/.claude
+/.claude/*
+!/.claude/skills
 /CLAUDE.md
 /CLAUDE.local.md
 /.playwright-mcp
