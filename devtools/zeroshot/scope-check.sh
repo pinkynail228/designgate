@@ -13,8 +13,11 @@ work, task = sys.argv[1:]
 m = re.search(r'^Allowed paths:\s*(.+)$', open(task).read(), re.M)
 if not m:
     print("SCOPE_FAIL: task has no 'Allowed paths:' line"); sys.exit(1)
-allowed = [p.strip().rstrip('.') for p in re.sub(r'Nothing else\.?', '', m.group(1)).split(',')]
+allowed = [p.strip().rstrip('.') for p in m.group(1).split('Nothing else')[0].split(',')]
 allowed = [p for p in allowed if p]
+odd = [p for p in allowed if ' ' in p]
+if odd:
+    print("SCOPE_FAIL: unparsable allowed path(s):", odd); sys.exit(1)
 out = subprocess.run(['git', '-C', work, 'status', '--porcelain', '-uall', '--no-renames'],
                      capture_output=True, text=True, check=True).stdout
 changed = [line[3:] for line in out.splitlines()]
