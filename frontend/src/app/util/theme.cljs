@@ -48,13 +48,13 @@
 (defn resolve-theme
   "Resolves the profile's theme setting to the effective UI theme ('dark' or
   'light'): 'system' follows the given system theme, 'default' and an unset
-  theme mean dark, and any other value is taken as-is. Single source of truth
+  theme mean light, and any other value is taken as-is. Single source of truth
   for the app's own theme and the theme reported to plugins."
   [profile-theme system-theme]
   (cond
     (= profile-theme "system") system-theme
-    (= profile-theme "default") "dark"
-    :else (d/nilv profile-theme "dark")))
+    (= profile-theme "default") "light"
+    :else (d/nilv profile-theme "light")))
 
 (defn use-initialize
   [{profile-theme :theme}]
