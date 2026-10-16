@@ -1,0 +1,164 @@
+name: "CI: DesignGate Frontend"
+
+# Fork-owned CI: upstream's tests-frontend.yml needs the self-hosted
+# penpot-extended-runner and build-docker.yml pulls bundles from S3 and logs
+# in to upstream registries. This workflow runs the same frontend checks on
+# GitHub-hosted runners and publishes the frontend image by digest.
+
+defaults:
+  run:
+    shell: bash
+
+on:
+  push:
+    branches:
+      - designgate
+      - 'dg/**'
+
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # Image upstream runs these frontend checks in (tests-frontend.yml:37-38).
+  DEVENV_IMAGE: penpotapp/devenv:latest
+
+jobs:
+  frontend-test:
+    name: "Frontend Tests"
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      # A job-level `container:` is pulled before the first step, so nothing
+      # can free host disk first. The devenv image plus the wasm/cargo and
+      # shadow-cljs build can exceed the ~14 GB a hosted runner has, so drop
+      # the preinstalled toolchains this job never uses, clear stale docker
+      # layers, and only then pull the image (the steps below run it with an
+      # explicit `docker run` on the cleaned-up runner).
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+                      /opt/hostedtoolcache/CodeQL /usr/local/share/boost
+          sudo docker image prune --all --force || true
+          df -h /
+
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Pull devenv image
+        run: docker pull "$DEVENV_IMAGE"
+
+      # Same image, mount and working directory manage.sh uses for its builds
+      # (manage.sh:1173-1192): the checkout at /home/penpot/penpot, commands
+      # run from /home/penpot/penpot/frontend.
+      - name: Install frontend dependencies
+        run: |
+          docker run --rm \
+            --mount source="$GITHUB_WORKSPACE",type=bind,target=/home/penpot/penpot \
+            -w /home/penpot/penpot/frontend \
+            "$DEVENV_IMAGE" bash -c 'pnpm install'
+
+      # `test` runs `build:test` first (frontend/package.json:36-37): that
+      # builds the render wasm binary via `build:wasm` (render-wasm/build) and
+      # compiles the test bundle with shadow-cljs, then `test` runs the
+      # compiled suite in target/tests/test.js.
+      - name: Frontend tests
+        run: |
+          docker run --rm \
+            --mount source="$GITHUB_WORKSPACE",type=bind,target=/home/penpot/penpot \
+            -w /home/penpot/penpot/frontend \
+            "$DEVENV_IMAGE" bash -c 'pnpm run test'
+
+      - name: Frontend lint
+        run: |
+          docker run --rm \
+            --mount source="$GITHUB_WORKSPACE",type=bind,target=/home/penpot/penpot \
+            -w /home/penpot/penpot/frontend \
+            "$DEVENV_IMAGE" bash -c 'pnpm run lint:clj && pnpm run check-fmt:clj && pnpm run lint:scss'
+
+  frontend-image:
+    name: "Frontend Image"
+    needs: frontend-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      # Same reason as in frontend-test: the devenv image plus the build can
+      # exceed the ~14 GB free disk of a hosted runner, so free space before
+      # anything is pulled.
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+                      /opt/hostedtoolcache/CodeQL /usr/local/share/boost
+          sudo docker image prune --all --force || true
+          df -h /
+
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          # `print-current-version` (manage.sh:130) uses
+          # `git describe --tags --match "*.*.*"`, so the tags must be fetched.
+          fetch-depth: 0
+
+      # `build-frontend-bundle` (manage.sh:1205) runs `build "frontend"`
+      # (manage.sh:1173), which pulls penpotapp/devenv and runs
+      # `frontend/scripts/build` inside it. That script runs
+      # `build:app:main` = `clojure -M:dev:shadow-cljs release main worker`
+      # (frontend/package.json:24) and produces ./bundles/frontend.
+      - name: Build frontend bundle
+        run: ./manage.sh build-frontend-bundle
+
+      # `_build-release-docker-image` (manage.sh:1307) rsyncs the bundle into
+      # docker/images before the image build; do the same staging explicitly.
+      - name: Stage bundle for the frontend image
+        run: |
+          rm -rf ./docker/images/bundle-frontend
+          cp -a ./bundles/frontend ./docker/images/bundle-frontend
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      # NOTE: Dockerfile.frontend builds FROM dhi.io/nginx (Docker Hardened
+      # Images, docker/images/Dockerfile.frontend:1). Upstream logs in to
+      # dhi.io with a DockerHub credential (build-docker.yml:185-189) because
+      # pulls from that registry need authentication. This fork has no such
+      # secret, so this step is expected to fail at the FROM line until a
+      # dhi.io credential is provided -- reported as a blocker, not patched
+      # with secrets here.
+      - name: Build and push frontend image
+        id: image
+        uses: docker/build-push-action@v7
+        with:
+          context: ./docker/images
+          file: ./docker/images/Dockerfile.frontend
+          build-args: |
+            BUNDLE_PATH=./bundle-frontend/
+          push: true
+          # GHCR requires a lowercase repository name.
+          tags: ghcr.io/${{ github.repository_owner }}/designgate-frontend:${{ github.sha }}
+
+      - name: Write job summary
+        run: |
+          {
+            echo "### Frontend image"
+            echo ""
+            echo "- Commit: \`${{ github.sha }}\`"
+            echo "- Image: \`ghcr.io/${{ github.repository_owner }}/designgate-frontend:${{ github.sha }}\`"
+            echo "- Digest: \`${{ steps.image.outputs.digest }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
