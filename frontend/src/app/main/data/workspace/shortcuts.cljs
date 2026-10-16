@@ -172,8 +172,8 @@
 
    ;; MODIFY LAYERS
 
-   :rename               {:tooltip (ds/alt "N")
-                          :command "alt+n"
+   :rename               {:tooltip (ds/meta "R")
+                          :command [(ds/c-mod "r") "alt+n"]
                           :subsections [:edit]
                           :section [:workspace]
                           :fn #(emit-when-no-readonly (dw/start-rename-selected))}
@@ -202,14 +202,14 @@
                           :section [:workspace]
                           :fn #(emit-when-no-readonly (dw/unmask-group))}
 
-   :create-component-variant {:tooltip (ds/meta "K")
-                              :command (ds/c-mod "k")
+   :create-component-variant {:tooltip (ds/meta-alt "K")
+                              :command [(ds/ca-mod "k") (ds/c-mod "k")]
                               :subsections [:modify-layers]
                               :section [:workspace]
                               :fn #(emit-when-no-readonly (dwv/add-component-or-variant))}
 
-   :detach-component     {:tooltip (ds/meta-shift "K")
-                          :command (ds/c-mod "shift+k")
+   :detach-component     {:tooltip (ds/meta-alt "B")
+                          :command [(ds/ca-mod "b") (ds/c-mod "shift+k")]
                           :subsections [:modify-layers]
                           :section [:workspace]
                           :fn #(emit-when-no-readonly dwl/detach-selected-components)}
@@ -555,14 +555,14 @@
 
    ;; PANELS
 
-   :toggle-layers        {:tooltip (ds/alt "L")
-                          :command (ds/a-mod "l")
+   :toggle-layers        {:tooltip (ds/alt "1")
+                          :command [(ds/a-mod "1") (ds/a-mod "l")]
                           :subsections [:panels]
                           :section [:workspace]
                           :fn #(st/emit! (dcm/go-to-workspace :layout :layers))}
 
-   :toggle-assets        {:tooltip (ds/alt "I")
-                          :command (ds/a-mod "i")
+   :toggle-assets        {:tooltip (ds/alt "2")
+                          :command [(ds/a-mod "2") (ds/a-mod "i")]
                           :subsections [:panels]
                           :section [:workspace]
                           :fn #(st/emit! (dcm/go-to-workspace :layout :assets))}
