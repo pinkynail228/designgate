@@ -17,6 +17,7 @@
    [frontend-tests.data.store-test]
    [frontend-tests.data.uploads-test]
    [frontend-tests.data.viewer-test]
+   [frontend-tests.data.workspace-check-designs-test]
    [frontend-tests.data.workspace-colors-test]
    [frontend-tests.data.workspace-comments-test]
    [frontend-tests.data.workspace-component-uses-test]
@@ -124,6 +125,7 @@
    'frontend-tests.data.exports-assets-test
    'frontend-tests.data.uploads-test
    'frontend-tests.data.viewer-test
+   'frontend-tests.data.workspace-check-designs-test
    'frontend-tests.data.workspace-colors-test
    'frontend-tests.data.workspace-comments-test
    'frontend-tests.data.workspace-component-uses-test

@@ -628,6 +628,18 @@
            (when (kbd/enter? event)
              (on-show-version-history event))))
 
+        on-show-check-designs
+        (mf/use-fn
+         (fn [_]
+           (st/emit! (dw/toggle-layout-flag :check-designs))))
+
+        on-show-check-designs-key-down
+        (mf/use-fn
+         (mf/deps on-show-check-designs)
+         (fn [event]
+           (when (kbd/enter? event)
+             (on-show-check-designs event))))
+
         on-pin-version
         (mf/use-fn
          (fn [_]
@@ -719,6 +731,13 @@
          [:> shortcuts* {:id :toggle-history}]]
 
         [:div {:class (stl/css :separator)}]])
+
+     [:> dropdown-menu-item* {:class (stl/css :base-menu-item :submenu-item)
+                              :on-click    on-show-check-designs
+                              :on-key-down on-show-check-designs-key-down
+                              :id          "file-menu-check-designs"}
+      [:span {:class (stl/css :item-name)}
+       (tr "workspace.check-designs.title")]]
 
      [:> dropdown-menu-item* {:class (stl/css :base-menu-item :submenu-item)
                               :on-click    on-export-shapes
