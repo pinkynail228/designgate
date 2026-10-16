@@ -86,6 +86,7 @@
    [frontend-tests.ui.settings-password-schema-test]
    [frontend-tests.ui.settings-shortcuts-test]
    [frontend-tests.util-clipboard-test]
+   [frontend-tests.util-i18n-test]
    [frontend-tests.util-object-test]
    [frontend-tests.util-range-tree-test]
    [frontend-tests.util-simple-math-test]
@@ -190,6 +191,7 @@
    'frontend-tests.ui.settings-password-schema-test
    'frontend-tests.ui.settings-shortcuts-test
    'frontend-tests.util-clipboard-test
+   'frontend-tests.util-i18n-test
    'frontend-tests.util-object-test
    'frontend-tests.util-range-tree-test
    'frontend-tests.util-simple-math-test

@@ -14,7 +14,6 @@
    [app.config :as cf]
    [app.util.globals :as globals]
    [app.util.modules :as mod]
-   [app.util.storage :as storage]
    [cuerdas.core :as str]
    [goog.object :as gobj]
    [okulary.core :as l]
@@ -67,30 +66,32 @@
       (str/includes? locale "_")
       (conj (subs locale 0 2)))))
 
-(def ^:private browser-locales
-  (delay
-    (-> (.-language globals/navigator)
-        (parse-locale))))
+(defn resolve-locale
+  "Resolve a supported locale from an explicitly selected `lang`, falling back
+  to `fallback` when it is nil, blank or not supported. The browser language is
+  never used."
+  [lang fallback]
+  (if (or (nil? lang) (str/empty? lang))
+    fallback
+    (let [supported (into #{} (map :value) supported-locales)]
+      (loop [locales (seq (parse-locale lang))]
+        (if-let [locale (first locales)]
+          (if (contains? supported locale)
+            locale
+            (recur (rest locales)))
+          fallback)))))
 
 ;; Set initial translation loading state as globaly stored variable;
 ;; this facilitates hot reloading
 (when-not (exists? (unchecked-get globals/global "penpotTranslations"))
   (unchecked-set globals/global "penpotTranslations" #js {}))
 
-(defn- autodetect
-  []
-  (let [supported (into #{} (map :value supported-locales))]
-    (loop [locales (seq @browser-locales)]
-      (if-let [locale (first locales)]
-        (if (contains? supported locale)
-          locale
-          (recur (rest locales)))
-        cf/default-language))))
-
 (defn get-current
-  "Get the currently memoized locale or execute the autodetection"
+  "Get the locale to use until an explicitly selected profile language is
+  applied. The default language is used, not the browser language; the value
+  that older builds persisted in the global storage locale key is ignored."
   []
-  (or (get storage/global ::locale) (autodetect)))
+  cf/default-language)
 
 (def ^:dynamic *current-locale*
   (get-current))
@@ -133,17 +134,7 @@
 
 (defn set-locale
   [lname]
-  (let [lname (if (or (nil? lname)
-                      (str/empty? lname))
-                (autodetect)
-                (let [supported (into #{} (map :value) supported-locales)]
-                  (loop [locales (seq (parse-locale lname))]
-                    (if-let [locale (first locales)]
-                      (if (contains? supported locale)
-                        locale
-                        (recur (rest locales)))
-                      cf/default-language))))]
-
+  (let [lname (resolve-locale lname cf/default-language)]
     (->> (load lname)
          (p/fnly (fn [_r _c]
                    (set! *current-locale* lname)
