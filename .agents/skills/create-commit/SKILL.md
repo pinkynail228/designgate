@@ -18,7 +18,8 @@ implement features or push.
 
 Before drafting any commit, read `mem:workflow/creating-commits` end-to-end. It
 is the authoritative source for the commit message format, the emoji menu,
-subject/body limits, and the `AI-assisted-by` trailer. Follow it exactly.
+subject/body limits. Follow it exactly, except: DesignGate commits carry
+no `AI-assisted-by` trailer (see overrides in `AGENTS.md`).
 
 ## Iron Rules (non-negotiable)
 
@@ -51,12 +52,11 @@ subject/body limits, and the `AI-assisted-by` trailer. Follow it exactly.
    ```
    If it fails, amend the message (`git commit --amend`) until it passes. Do
    not finish with a failing checker.
-5. The `AI-assisted-by` trailer value is provided by the calling context — use
-   it verbatim.
+5. Do not add an `AI-assisted-by` trailer.
 
 ## Constraints
 
-- Do not push. Pushing is a separate workflow handled by the user.
+- Push only as allowed by the DesignGate overrides in `AGENTS.md`.
 - Do not run `git reset`, `git checkout`, `git restore`, `git clean`, or `rm`.
 - Do not pass `--author`. Author identity comes from the local git config.
 - Do not amend a commit you did not create in this session, unless explicitly asked.
