@@ -5,8 +5,9 @@
 This repo is DesignGate, a public fork of Penpot (branch `designgate`, upstream remote `upstream` = penpot/penpot).
 Agents run under an orchestrator; these rules replace the upstream ones where they conflict.
 
-- **Git:** agents may commit, push branches and open PRs. No force-push to `designgate`, no history rewrite
-  of pushed shared branches, no remote changes.
+- **Git:** Zeroshot workers and reviewers never commit or push; the orchestrator does. The orchestrator
+  pushes review branches (`dg/<topic>`) freely; merging into `designgate` needs the owner's approval.
+  No force-push to `designgate`, no history rewrite of pushed shared branches, no remote changes.
 - **Commits/PRs:** no `AI-assisted-by` trailer and no AI note in PRs. Other `check-commit` rules still apply.
 - **Database:** the local devenv database (`scripts/psql`, `penpot-psql`) is free to read, write and reset.
   Production is out of scope: no prod hosts, credentials or data in this repo or in agent commands.

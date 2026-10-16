@@ -1,0 +1,47 @@
+{
+    "permissions": {
+        "defaultMode": "acceptEdits",
+        "allow": [
+            "Bash(python3:*)",
+            "Bash(TMPDIR=*)",
+            "Bash(PYTHONPATH=*)",
+            "Bash(env:*)",
+            "Bash(git diff:*)",
+            "Bash(git status:*)",
+            "Bash(git log:*)",
+            "Bash(git show:*)",
+            "Bash(git stash:*)",
+            "Bash(git worktree:*)",
+            "Bash(git checkout:*)",
+            "Bash(git restore:*)",
+            "Bash(git apply:*)",
+            "Bash(mktemp:*)",
+            "Bash(mkdir:*)",
+            "Bash(cp:*)",
+            "Bash(rsync:*)",
+            "Bash(ls:*)",
+            "Bash(cat:*)",
+            "Bash(head:*)",
+            "Bash(tail:*)",
+            "Bash(grep:*)",
+            "Bash(find:*)",
+            "Bash(wc:*)",
+            "Bash(sed -n:*)",
+            "Bash(diff:*)",
+            "Bash(rm -rf /tmp/zs-agent-*)",
+            "Bash(rm -rf /private/tmp/zs-agent-*)",
+            "Read(//tmp/**)",
+            "Read(//private/tmp/**)",
+            "Edit(//tmp/zs-agent-*/**)",
+            "Write(//tmp/zs-agent-*/**)",
+            "mcp__plugin_context-mode_context-mode__*"
+        ],
+        "deny": [
+            "Bash(git push:*)",
+            "Bash(git commit:*)",
+            "Bash(git reset --hard:*)",
+            "Bash(ssh:*)",
+            "Bash(curl:*)"
+        ]
+    }
+}
