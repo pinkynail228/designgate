@@ -10376,3 +10376,23 @@ msgstr "Try again"
 
 msgid "dashboard.invite-profile-disabled"
 msgstr "You don't have permission to invite people to this team"
+
+msgid "workspace.check-designs.title"
+msgstr "Check designs"
+
+msgid "workspace.check-designs.empty"
+msgstr "No hard-coded values found"
+
+msgid "workspace.check-designs.count"
+msgid_plural "workspace.check-designs.count"
+msgstr[0] "1 hard-coded value"
+msgstr[1] "%s hard-coded values"
+
+msgid "workspace.check-designs.kind.fill-color"
+msgstr "Fill color"
+
+msgid "workspace.check-designs.kind.stroke-color"
+msgstr "Stroke color"
+
+msgid "workspace.check-designs.kind.typography"
+msgstr "Typography"

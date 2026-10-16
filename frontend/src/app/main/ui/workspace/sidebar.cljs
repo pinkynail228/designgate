@@ -32,6 +32,7 @@
    [app.main.ui.workspace.left-header :refer [left-header*]]
    [app.main.ui.workspace.right-header :refer [right-header*]]
    [app.main.ui.workspace.sidebar.assets :refer [assets-toolbox*]]
+   [app.main.ui.workspace.sidebar.check-designs :refer [check-designs-content*]]
    [app.main.ui.workspace.sidebar.debug :refer [debug-panel*]]
    [app.main.ui.workspace.sidebar.history :refer [history-toolbox*]]
    [app.main.ui.workspace.sidebar.layers :refer [layers-toolbox*]]
@@ -125,6 +126,7 @@
         mode-inspect?  (= options-mode :inspect)
         shortcuts?     (contains? layout :shortcuts)
         show-debug?    (contains? layout :debug-panel)
+        check-designs? (contains? layout :check-designs)
 
         section        (cond
                          (or mode-inspect? (contains? layout :layers)) :layers
@@ -198,6 +200,9 @@
 
         (true? show-debug?)
         [:> debug-panel* {:class (stl/css :left-sidebar-content)}]
+
+        (true? check-designs?)
+        [:> check-designs-content* {:class (stl/css :left-sidebar-content)}]
 
         :else
         [:div {:class (stl/css  :left-sidebar-content)}

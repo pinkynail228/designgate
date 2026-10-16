@@ -20,6 +20,7 @@
     :comments
     :assets
     :document-history
+    :check-designs
     :hide-palettes
     :colorpalette
     :element-options
@@ -37,19 +38,23 @@
 
 (def presets
   {:assets
-   {:del #{:sitemap :layers :document-history}
+   {:del #{:sitemap :layers :document-history :check-designs}
     :add #{:assets}}
 
    :document-history
    {:del #{:assets :layers :sitemap}
     :add #{:document-history}}
 
+   :check-designs
+   {:del #{:assets :layers :sitemap :document-history}
+    :add #{:check-designs}}
+
    :layers
-   {:del #{:document-history :assets}
+   {:del #{:document-history :assets :check-designs}
     :add #{:sitemap :layers}}
 
    :tokens
-   {:del #{:sitemap :layers :document-history :assets}
+   {:del #{:sitemap :layers :document-history :assets :check-designs}
     :add #{:tokens}}})
 
 (def valid-options-mode
