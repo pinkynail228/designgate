@@ -90,6 +90,7 @@
    [frontend-tests.util-range-tree-test]
    [frontend-tests.util-simple-math-test]
    [frontend-tests.util-text-editor-test]
+   [frontend-tests.util-theme-test]
    [frontend-tests.util-webapi-test]
    [frontend-tests.util-zip-test]
    [frontend-tests.util.dom.dnd-test]
@@ -194,6 +195,7 @@
    'frontend-tests.util-range-tree-test
    'frontend-tests.util-simple-math-test
    'frontend-tests.util-text-editor-test
+   'frontend-tests.util-theme-test
    'frontend-tests.util-webapi-test
    'frontend-tests.util.dom.dnd-test
    'frontend-tests.util-zip-test
