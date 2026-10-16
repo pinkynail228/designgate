@@ -22,6 +22,7 @@
    [app.util.http :as http]
    [app.util.i18n :as i18n :refer [tr]]
    [app.util.storage :as storage]
+   [app.util.theme :as theme]
    [beicon.v2.core :as rx]
    [potok.v2.core :as ptk]))
 
@@ -166,28 +167,26 @@
 
 ;; --- Toggle Theme
 
+(defn next-theme
+  "Returns the theme that follows `current` in the profile theme cycle
+  (dark -> light -> system -> dark). An unset theme (nil) and the legacy
+  \"default\" value count as light, so they advance to \"system\", the same
+  as an explicit \"light\"."
+  [current]
+  (if (= "system" current)
+    "dark"
+    (case (theme/resolve-theme current nil)
+      "dark"  "light"
+      "light" "system"
+      ;; nil, the legacy "default" value and any other value are light
+      "system")))
+
 (defn toggle-theme
   []
   (ptk/reify ::toggle-theme
     ptk/UpdateEvent
     (update [_ state]
-      (update-in state [:profile :theme]
-                 (fn [current]
-                   (let [current (cond
-                                   ;; NOTE: this is a workaround for
-                                   ;; the old data on the database
-                                   ;; where whe have `default` value
-                                   (= current "default")
-                                   "dark"
-
-                                   :else
-                                   current)]
-                     (case current
-                       "dark"   "light"
-                       "light"  "system"
-                       "system" "dark"
-                       ; Failsafe for missing data
-                       "dark")))))
+      (update-in state [:profile :theme] next-theme))
 
     ptk/WatchEvent
     (watch [it state _]

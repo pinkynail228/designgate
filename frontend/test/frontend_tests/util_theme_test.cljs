@@ -6,6 +6,7 @@
 
 (ns frontend-tests.util-theme-test
   (:require
+   [app.main.data.profile :as profile]
    [app.util.theme :as theme]
    [cljs.test :as t :include-macros true]))
 
@@ -30,3 +31,17 @@
   (t/testing "'system' follows the given system theme"
     (t/is (= "light" (theme/resolve-theme "system" "light")))
     (t/is (= "dark" (theme/resolve-theme "system" "dark")))))
+
+(t/deftest next-theme-follows-the-cycle
+  (t/testing "the theme cycle goes dark -> light -> system -> dark"
+    (t/is (= "light" (profile/next-theme "dark")))
+    (t/is (= "system" (profile/next-theme "light")))
+    (t/is (= "dark" (profile/next-theme "system")))))
+
+(t/deftest next-theme-unset-counts-as-light
+  (t/testing "an unset theme behaves as light and advances to system"
+    (t/is (= "system" (profile/next-theme nil)))))
+
+(t/deftest next-theme-legacy-default-counts-as-light
+  (t/testing "the legacy 'default' value behaves as light"
+    (t/is (= "system" (profile/next-theme "default")))))
