@@ -22,7 +22,6 @@
    [app.main.ui.ds.foundations.typography.text :refer [text*]]
    [app.util.dom :as dom]
    [app.util.i18n :as i18n :refer [tr]]
-   [app.util.theme :as theme]
    [rumext.v2 :as mf]))
 
 
@@ -72,7 +71,7 @@
      [:div {:class (stl/css :fields-row)}
       [:& fm/select {:label (tr "dashboard.select-ui-theme")
                      :name :theme
-                     :default theme/default
+                     :default "light"
                      :options [{:label (tr "dashboard.select-ui-theme.dark") :value "dark"}
                                {:label (tr "dashboard.select-ui-theme.light") :value "light"}
                                {:label (tr "dashboard.select-ui-theme.system") :value "system"}]
