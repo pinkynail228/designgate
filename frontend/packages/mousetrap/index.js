@@ -180,6 +180,80 @@ function _addEvent(object, type, callback) {
 }
 
 /**
+ * mapping of the punctuation keys that produce a non ascii character on a non
+ * latin layout, to the character they produce on a latin layout
+ *
+ * @type {Object}
+ */
+var _CODE_CHAR_MAP = {
+  'Comma': ',',
+  'Period': '.',
+  'Backslash': '\\',
+  'Quote': '\'',
+  'BracketLeft': '['
+};
+
+/**
+ * character that the physical key (e.code) produces on a latin layout
+ *
+ * @param {Event} e
+ * @return {string|null}
+ */
+function _characterFromCode(e) {
+  var code = e.code;
+
+  if (!code) {
+    return null;
+  }
+
+  // "KeyA".."KeyZ"
+  if (code.indexOf('Key') === 0 && code.length === 4) {
+    var letter = code.charAt(3).toLowerCase();
+    if (letter >= 'a' && letter <= 'z') {
+      return letter;
+    }
+  }
+
+  // "Digit0".."Digit9"
+  if (code.indexOf('Digit') === 0 && code.length === 6) {
+    var digit = code.charAt(5);
+    if (digit >= '0' && digit <= '9') {
+      return digit;
+    }
+  }
+
+  return _CODE_CHAR_MAP.hasOwnProperty(code) ? _CODE_CHAR_MAP[code] : null;
+}
+
+/**
+ * on a non latin layout (cyrillic, greek, ...) a letter key produces a
+ * character that is not the one written in the binding. bindings always use
+ * the latin key, so on those layouts we use the physical key instead. latin
+ * layouts keep the character the layout produced.
+ *
+ * @param {Event} e
+ * @param {string} character
+ * @return {string}
+ */
+function _latinFallback(e, character) {
+  var code = character.charCodeAt(0);
+
+  if (code >= 0x20 && code <= 0x7e) {
+    return character;
+  }
+
+  var latin = _characterFromCode(e);
+
+  if (latin === null) {
+    return character;
+  }
+
+  // when the layout produced an upper case character (shift is pressed) the
+  // latin character is upper case too
+  return character === character.toLowerCase() ? latin : latin.toUpperCase();
+}
+
+/**
  * takes the event and returns the key character
  *
  * @param {Event} e
@@ -212,7 +286,7 @@ function _characterFromEvent(e) {
       character = character.toLowerCase();
     }
 
-    return character;
+    return _latinFallback(e, character);
   }
 
   // for non keypress events the special maps are needed
@@ -229,7 +303,7 @@ function _characterFromEvent(e) {
   // with keydown and keyup events the character seems to always
   // come in as an uppercase character whether you are pressing shift
   // or not.  we should make sure it is always lowercase for comparisons
-  return String.fromCharCode(e.which).toLowerCase();
+  return _latinFallback(e, String.fromCharCode(e.which).toLowerCase());
 }
 
 /**
@@ -1029,6 +1103,11 @@ export function addKeycodes(object) {
   }
   _REVERSE_MAP = null;
 };
+
+/**
+ * exposes the constructor so a different target element can be used
+ */
+export { Mousetrap };
 
 /**
  * Init the global mousetrap functions

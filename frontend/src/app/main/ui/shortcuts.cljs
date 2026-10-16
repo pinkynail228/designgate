@@ -41,7 +41,47 @@
    "Tab"        "tab"
    " "          "space"})
 
-(defn- keyboard-event->mousetrap
+(def ^:private code-key-map
+  {"Comma"       ","
+   "Period"      "."
+   "Backslash"   "\\"
+   "Quote"       "'"
+   "BracketLeft" "["})
+
+(defn- event-code->key
+  "Returns the latin key that the physical key of the event (`event.code`)
+   produces on a latin layout. Returns nil when the code is not a key that a
+   shortcut can be bound to."
+  [^js event]
+  (let [code (.-code event)]
+    (cond
+      (not (string? code))
+      nil
+
+      (str/starts-with? code "Key")
+      (let [key (str/lower (subs code 3))]
+        (when (re-matches #"[a-z]" key) key))
+
+      (str/starts-with? code "Digit")
+      (let [key (subs code 5)]
+        (when (re-matches #"[0-9]" key) key))
+
+      :else
+      (get code-key-map code))))
+
+(defn- keyboard-event-key
+  "Returns the key of the event. A non latin layout produces a character of
+   that layout (the russian 'р' for the key 'p'), so we fall back to the
+   physical key and the recorded shortcut keeps the latin key of the binding."
+  [^js event]
+  (let [key (.-key event)]
+    (if (and (string? key)
+             (pos? (count key))
+             (> (.charCodeAt key 0) 127))
+      (or (event-code->key event) key)
+      key)))
+
+(defn keyboard-event->mousetrap
   [^js event]
   (let [parts (cond-> []
                 (and (.-ctrlKey event)
@@ -57,7 +97,7 @@
 
                 (.-shiftKey event)
                 (conj "shift"))
-        key   (.-key event)
+        key   (keyboard-event-key event)
         key   (if (contains? modifier-keys key)
                 nil
                 (or (get key-name-map key)
@@ -81,7 +121,7 @@
 
                 (.-shiftKey event)
                 (conj "shift"))
-        key   (.-key event)]
+        key   (keyboard-event-key event)]
     (if (contains? modifier-keys key)
       {:modifiers parts :finalized? false}
       {:modifiers parts
