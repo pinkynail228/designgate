@@ -1,0 +1,134 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright (c) KALEIDOS INC Sucursal en España SL
+
+@use "ds/_sizes.scss" as *;
+@use "ds/typography.scss" as t;
+
+.compare-panel {
+  // The History sidebar toolbox is a grid; span all its rows so the
+  // panel fills the available height.
+  grid-row: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  block-size: 100%;
+  overflow: hidden;
+}
+
+.compare-title {
+  margin: var(--sp-s) var(--sp-s) 0;
+}
+
+.compare-state {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-xxxl);
+  margin: var(--sp-xxxl) auto;
+  inline-size: $sz-200;
+}
+
+.compare-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-xs);
+  padding: var(--sp-s) 0 var(--sp-l);
+  overflow-y: auto;
+}
+
+.compare-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.compare-section-header {
+  @include t.use-typography("body-small");
+
+  display: flex;
+  align-items: center;
+  gap: var(--sp-s);
+  inline-size: 100%;
+  padding: var(--sp-s);
+  border: 0;
+  background: none;
+  color: var(--color-foreground-secondary);
+  cursor: pointer;
+
+  &:hover {
+    color: var(--color-foreground-primary);
+  }
+}
+
+.compare-section-icon {
+  flex: 0 0 auto;
+}
+
+.compare-section-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.compare-section-count {
+  margin-inline-start: auto;
+  color: var(--color-foreground-secondary);
+}
+
+.compare-section-arrow {
+  flex: 0 0 auto;
+  transition: transform 0.2s;
+
+  &.open {
+    transform: rotate(90deg);
+  }
+}
+
+.compare-section-empty {
+  @include t.use-typography("body-small");
+
+  padding: 0 var(--sp-s) var(--sp-s) var(--sp-l);
+  color: var(--color-foreground-secondary);
+}
+
+.compare-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-xs);
+  margin: 0;
+  padding: 0 var(--sp-s) var(--sp-s) var(--sp-l);
+  list-style: none;
+}
+
+.compare-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-s);
+  color: var(--color-foreground-primary);
+}
+
+.compare-marker {
+  @include t.use-typography("body-small");
+
+  inline-size: var(--sp-m);
+  text-align: center;
+  font-weight: 600;
+}
+
+.compare-marker-added {
+  color: var(--color-accent-success);
+}
+
+.compare-marker-changed {
+  color: var(--color-accent-primary);
+}
+
+.compare-marker-removed {
+  color: var(--color-accent-error);
+}
+
+.compare-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

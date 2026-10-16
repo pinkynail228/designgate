@@ -13,6 +13,7 @@
    [app.config :as cfg]
    [app.main.data.event :as ev]
    [app.main.data.nitrate :as dnt]
+   [app.main.data.workspace.version-compare :as dwvc]
    [app.main.data.workspace.versions :as dwv]
    [app.main.refs :as refs]
    [app.main.store :as st]
@@ -25,6 +26,7 @@
    [app.main.ui.ds.product.empty-state :refer [empty-state*]]
    [app.main.ui.ds.product.milestone :refer [milestone*]]
    [app.main.ui.ds.product.milestone-group :refer [milestone-group*]]
+   [app.main.ui.workspace.sidebar.version-compare :refer [version-compare*]]
    [app.util.dom :as dom]
    [app.util.i18n :as i18n :refer [tr]]
    [app.util.keyboard :as kbd]
@@ -125,7 +127,7 @@
 
 (mf/defc version-entry*
   {::mf/private true}
-  [{:keys [entry current-profile on-preview on-restore on-delete on-rename on-lock on-unlock on-edit on-cancel-edit is-editing]}]
+  [{:keys [entry current-profile on-preview on-compare on-restore on-delete on-rename on-lock on-unlock on-edit on-cancel-edit is-editing]}]
   (let [show-menu? (mf/use-state false)
         profiles   (mf/deref refs/profiles)
 
@@ -149,6 +151,13 @@
          (fn []
            (when (fn? on-preview)
              (on-preview (:id entry)))))
+
+        on-compare
+        (mf/use-fn
+         (mf/deps entry on-compare)
+         (fn []
+           (when (fn? on-compare)
+             (on-compare (:id entry)))))
 
         on-restore
         (mf/use-fn
@@ -235,6 +244,11 @@
 
          [:li {:class (stl/css :menu-option)
                :role "button"
+               :on-click on-compare}
+          (tr "workspace.versions.compare.button")]
+
+         [:li {:class (stl/css :menu-option)
+               :role "button"
                :on-click on-restore}
           (tr "labels.restore")]
 
@@ -258,7 +272,7 @@
             (tr "labels.delete")])])]]))
 
 (mf/defc snapshot-entry*
-  [{:keys [entry on-pin-snapshot on-restore-snapshot on-preview-snapshot]}]
+  [{:keys [entry on-pin-snapshot on-restore-snapshot on-preview-snapshot on-compare-snapshot]}]
 
   (let [open-menu* (mf/use-state nil)
         entry-ref (mf/use-ref nil)
@@ -283,6 +297,13 @@
          (fn [event]
            (when (fn? on-preview-snapshot)
              (on-preview-snapshot (extract-id-from-event event) event))))
+
+        on-compare-snapshot
+        (mf/use-fn
+         (mf/deps on-compare-snapshot)
+         (fn [event]
+           (when (fn? on-compare-snapshot)
+             (on-compare-snapshot (extract-id-from-event event) event))))
 
         on-open-snapshot-menu
         (mf/use-fn
@@ -312,6 +333,11 @@
              :data-id (dm/str (:snapshot @open-menu*))
              :on-click on-preview-snapshot}
         (tr "workspace.versions.button.preview")]
+       [:li {:class (stl/css :menu-option)
+             :role "button"
+             :data-id (dm/str (:snapshot @open-menu*))
+             :on-click on-compare-snapshot}
+        (tr "workspace.versions.compare.button")]
        [:li {:class (stl/css :menu-option)
              :role "button"
              :data-id (dm/str (:snapshot @open-menu*))
@@ -372,6 +398,11 @@
                                 ::ev/origin "workspace:sidebar"
                                 :type "pinned-version"}))))
 
+        on-compare-version
+        (mf/use-fn
+         (fn [id]
+           (st/emit! (dwvc/fetch-and-compare id))))
+
         on-restore-snapshot
         (mf/use-fn
          (fn [id _event]
@@ -408,60 +439,65 @@
       (st/emit! (dwv/init-versions-state)))
 
     [:div {:class (stl/css :version-toolbox)}
-     [:& select
-      {:default-value :all
-       :aria-label (tr "workspace.versions.filter.label")
-       :options options
-       :on-change on-change-filter}]
-
-     (cond
-       (= status :loading)
-       [:div {:class (stl/css :versions-empty)}
-        [:> empty-state* {:icon i/clock
-                          :text (tr "workspace.versions.loading")}]]
-
-       (= status :loaded)
+     (if (some? (:compare state))
+       [:> version-compare* {}]
        [:*
-        [:div {:class (stl/css :version-save-version)}
-         (tr "workspace.versions.button.save")
-         [:> icon-button* {:variant "ghost"
-                           :aria-label (tr "workspace.versions.button.save")
-                           :on-click on-create-version
-                           :icon i/pin}]]
+        [:& select
+         {:default-value :all
+          :aria-label (tr "workspace.versions.filter.label")
+          :options options
+          :on-change on-change-filter}]
 
-        (if (empty? data)
+        (cond
+          (= status :loading)
           [:div {:class (stl/css :versions-empty)}
-           [:> empty-state* {:icon i/history
-                             :text (tr "workspace.versions.empty")}]]
+           [:> empty-state* {:icon i/clock
+                             :text (tr "workspace.versions.loading")}]]
 
-          [:ul {:class (stl/css :versions-entries)}
-           (for [entry entries]
-             (case (:type entry)
-               :version
-               [:> version-entry* {:key (:index entry)
-                                   :entry entry
-                                   :is-editing (= (:id entry) editing)
-                                   :current-profile profile
-                                   :on-edit on-edit-version
-                                   :on-cancel-edit on-cancel-version-edition
-                                   :on-rename on-rename-version
-                                   :on-preview on-preview-version
-                                   :on-restore on-restore-version
-                                   :on-delete on-delete-version
-                                   :on-lock on-lock-version
-                                   :on-unlock on-unlock-version}]
+          (= status :loaded)
+          [:*
+           [:div {:class (stl/css :version-save-version)}
+            (tr "workspace.versions.button.save")
+            [:> icon-button* {:variant "ghost"
+                              :aria-label (tr "workspace.versions.button.save")
+                              :on-click on-create-version
+                              :icon i/pin}]]
 
-               :snapshot
-               [:> snapshot-entry* {:key (:index entry)
-                                    :entry entry
-                                    :on-preview-snapshot on-preview-snapshot
-                                    :on-restore-snapshot on-restore-snapshot
-                                    :on-pin-snapshot on-pin-version}]
+           (if (empty? data)
+             [:div {:class (stl/css :versions-empty)}
+              [:> empty-state* {:icon i/history
+                                :text (tr "workspace.versions.empty")}]]
 
-               nil))])
+             [:ul {:class (stl/css :versions-entries)}
+              (for [entry entries]
+                (case (:type entry)
+                  :version
+                  [:> version-entry* {:key (:index entry)
+                                      :entry entry
+                                      :is-editing (= (:id entry) editing)
+                                      :current-profile profile
+                                      :on-edit on-edit-version
+                                      :on-cancel-edit on-cancel-version-edition
+                                      :on-rename on-rename-version
+                                      :on-preview on-preview-version
+                                      :on-compare on-compare-version
+                                      :on-restore on-restore-version
+                                      :on-delete on-delete-version
+                                      :on-lock on-lock-version
+                                      :on-unlock on-unlock-version}]
 
-        [:> cta* {:title (tr "workspace.versions.warning.text" (get-versions-stored-days team profile))}
-         [:> i18n/tr-html*
-          {:tag-name "div"
-           :class (stl/css :cta)
-           :content (get-versions-warning-subtext team)}]]])]))
+                  :snapshot
+                  [:> snapshot-entry* {:key (:index entry)
+                                       :entry entry
+                                       :on-preview-snapshot on-preview-snapshot
+                                       :on-compare-snapshot on-compare-version
+                                       :on-restore-snapshot on-restore-snapshot
+                                       :on-pin-snapshot on-pin-version}]
+
+                  nil))])
+
+           [:> cta* {:title (tr "workspace.versions.warning.text" (get-versions-stored-days team profile))}
+            [:> i18n/tr-html*
+             {:tag-name "div"
+              :class (stl/css :cta)
+              :content (get-versions-warning-subtext team)}]]])])]))
