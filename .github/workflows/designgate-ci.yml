@@ -31,7 +31,7 @@ env:
 jobs:
   frontend-test:
     name: "Frontend Tests"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
 
     steps:
@@ -85,7 +85,7 @@ jobs:
   frontend-image:
     name: "Frontend Image"
     needs: frontend-test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 90
     permissions:
       contents: read
