@@ -205,7 +205,7 @@ msgstr "We've sent a verification email to:"
 
 #: src/app/main/ui/auth/login.cljs:178, src/app/main/ui/auth/recovery_request.cljs:77, src/app/main/ui/auth/register.cljs:168
 msgid "auth.work-email"
-msgstr "Work email"
+msgstr "Personal email"
 
 #: src/app/main/ui/onboarding/questions.cljs
 #, unused

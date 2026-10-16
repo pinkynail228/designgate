@@ -198,7 +198,7 @@ msgstr "Мы отправили эл. письмо с подтверждение
 
 #: src/app/main/ui/auth/login.cljs:178, src/app/main/ui/auth/recovery_request.cljs:77, src/app/main/ui/auth/register.cljs:168
 msgid "auth.work-email"
-msgstr "Рабочая эл. почта"
+msgstr "Личная эл. почта"
 
 #: src/app/main/ui/onboarding/questions.cljs
 #, unused
