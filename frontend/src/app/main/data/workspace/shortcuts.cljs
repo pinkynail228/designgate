@@ -320,8 +320,8 @@
                                   {::ev/origin "workspace:shortcuts"}))}
    ;; TOOLS
 
-   :draw-frame           {:tooltip "B"
-                          :command ["b" "a"]
+   :draw-frame           {:tooltip "F"
+                          :command ["f" "a" "b"]
                           :section [:workspace :basics]
                           :subsections [:tools :basics]
                           :fn #(emit-when-no-readonly (dwd/select-for-drawing :frame))}
@@ -338,8 +338,8 @@
                           :subsections [:tools]
                           :fn #(emit-when-no-readonly (dwd/select-for-drawing :rect))}
 
-   :draw-ellipse         {:tooltip "E"
-                          :command "e"
+   :draw-ellipse         {:tooltip "O"
+                          :command ["o" "e"]
                           :section [:workspace]
                           :subsections [:tools]
                           :fn #(emit-when-no-readonly (dwd/select-for-drawing :circle))}
@@ -369,8 +369,8 @@
                           :section [:workspace]
                           :fn #(emit-when-no-readonly (dwd/select-for-drawing :arrow))}
 
-   :draw-curve           {:tooltip (ds/shift "C")
-                          :command "shift+c"
+   :draw-curve           {:tooltip (ds/shift "P")
+                          :command ["shift+p" "shift+c"]
                           :section [:workspace]
                           :subsections [:tools]
                           :fn #(emit-when-no-readonly (dwd/select-for-drawing :curve))}
@@ -424,8 +424,8 @@
                           :subsections [:tools]
                           :fn #(emit-when-no-readonly (mdc/picker-for-selected-shape))}
 
-   :toggle-focus-mode    {:command "f"
-                          :tooltip "F"
+   :toggle-focus-mode    {:command "shift+f"
+                          :tooltip (ds/shift "F")
                           :section [:workspace :basics]
                           :subsections [:basics :tools]
                           :fn #(st/emit! (dw/toggle-focus-mode))}
