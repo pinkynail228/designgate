@@ -18,10 +18,11 @@
 
 (mf/defc tab*
   {::mf/private true}
-  [{:keys [selected icon label aria-label id ref] :rest props}]
+  [{:keys [selected icon label aria-label id ref variant] :rest props}]
   (let [class (stl/css-case
                :tab true
-               :selected selected)
+               :selected selected
+               :tab-flat (= variant "flat"))
         props (mf/spread-props props
                                {:class class
                                 :role "tab"
@@ -49,14 +50,16 @@
 (mf/defc tab-nav*
   {::mf/private true
    ::mf/wrap [mf/memo]}
-  [{:keys [ref tabs selected on-click button-position action-button] :rest props}]
+  [{:keys [ref tabs selected on-click button-position action-button variant] :rest props}]
   (let [nav-class
         (stl/css-case :tab-nav true
+                      :tab-nav-flat (= variant "flat")
                       :tab-nav-start (= "start" button-position)
                       :tab-nav-end (= "end" button-position))
         props
         (mf/spread-props props
-                         {:class (stl/css :tab-list)
+                         {:class (stl/css-case :tab-list true
+                                               :tab-list-flat (= variant "flat"))
                           :role "tablist"
                           :aria-orientation "horizontal"})]
     [:nav {:class nav-class}
@@ -75,6 +78,7 @@
                     :label      label
                     :aria-label aria-label
                     :selected   (= id selected)
+                    :variant    variant
                     :on-click   on-click
                     :ref        ref
                     :id         id}]))]
@@ -108,13 +112,16 @@
    [:selected :string]
    [:action-button {:optional true} some?]
    [:action-button-position {:optional true}
-    [:maybe [:enum "start" "end"]]]])
+    [:maybe [:enum "start" "end"]]]
+   [:variant {:optional true}
+    [:maybe [:enum "default" "flat"]]]])
 
 (mf/defc tab-switcher*
   {::mf/schema schema:tab-switcher}
-  [{:keys [tabs class on-change selected action-button-position action-button children scrollable-panel] :rest props}]
+  [{:keys [tabs class on-change selected action-button-position action-button children scrollable-panel variant] :rest props}]
   (let [nodes-ref (mf/use-ref nil)
         scrollable-panel (d/nilv scrollable-panel false)
+        variant (d/nilv variant "default")
 
         tabs
         (if (array? tabs)
@@ -180,6 +187,7 @@
     [:> :div props
      [:div {:class (stl/css :padding-wrapper)}
       [:> tab-nav* {:button-position action-button-position
+                    :variant variant
                     :action-button action-button
                     :tabs tabs
                     :ref on-ref

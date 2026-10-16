@@ -261,6 +261,7 @@
        [:> tab-switcher* {:tabs options-tabs
                           :on-change on-option-tab-change
                           :selected (name options-mode)
+                          :variant "flat"
                           :class (stl/css :options-tab-switcher)}
         (case options-mode
           :prototype

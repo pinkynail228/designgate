@@ -100,6 +100,32 @@
   padding-inline: var(--sp-xxs);
 }
 
+// FLAT VARIANT
+.tab-nav-flat {
+  --tabs-bg-color: transparent;
+
+  border-radius: 0;
+}
+
+.tab-list-flat {
+  border-radius: 0;
+}
+
+.tab-flat {
+  --tabs-item-bg-color: transparent;
+
+  border-radius: 0;
+
+  &.selected {
+    --tabs-item-fg-color: var(--color-foreground-primary);
+    --tabs-item-fg-color-hover: var(--color-foreground-primary);
+  }
+
+  .tab-text {
+    text-transform: none;
+  }
+}
+
 .tab-panel {
   --tab-panel-outline-color: none;
 
