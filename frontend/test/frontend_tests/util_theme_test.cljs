@@ -32,6 +32,22 @@
     (t/is (= "light" (theme/resolve-theme "system" "light")))
     (t/is (= "dark" (theme/resolve-theme "system" "dark")))))
 
+(t/deftest dark-theme?-unset-is-light
+  (t/testing "an unset profile theme is never dark"
+    (t/is (false? (theme/dark-theme? nil "light")))
+    (t/is (false? (theme/dark-theme? nil "dark")))))
+
+(t/deftest dark-theme?-legacy-default-is-light
+  (t/testing "the legacy 'default' value is never dark"
+    (t/is (false? (theme/dark-theme? "default" "light")))
+    (t/is (false? (theme/dark-theme? "default" "dark")))))
+
+(t/deftest dark-theme?-explicit-and-system-dark
+  (t/testing "an explicit dark theme, or system on a dark OS, is dark"
+    (t/is (true? (theme/dark-theme? "dark" "light")))
+    (t/is (true? (theme/dark-theme? "system" "dark")))
+    (t/is (false? (theme/dark-theme? "system" "light")))))
+
 (t/deftest next-theme-follows-the-cycle
   (t/testing "the theme cycle goes dark -> light -> system -> dark"
     (t/is (= "light" (profile/next-theme "dark")))

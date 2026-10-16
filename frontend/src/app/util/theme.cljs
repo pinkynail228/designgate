@@ -17,8 +17,6 @@
 (defonce ^:private color-scheme-listeners*
   (atom #{}))
 
-(def ^:const default "dark")
-
 (defn get-system-theme
   []
   (if ^boolean (.-matches color-scheme-media-query)
@@ -55,6 +53,13 @@
     (= profile-theme "system") system-theme
     (= profile-theme "default") "light"
     :else (d/nilv profile-theme "light")))
+
+(defn dark-theme?
+  "True when the effective UI theme for `profile-theme`, resolved against
+  `system-theme`, is dark. An unset or legacy theme is light, so this returns
+  false for it."
+  [profile-theme system-theme]
+  (= "dark" (resolve-theme profile-theme system-theme)))
 
 (defn use-initialize
   [{profile-theme :theme}]
