@@ -6644,9 +6644,17 @@ msgstr "Components"
 msgid "workspace.assets.components.add-component"
 msgstr "Add component"
 
+#: src/app/main/ui/workspace/sidebar/assets/components.cljs:58
+msgid "workspace.assets.components.not-used-in-file"
+msgstr "Not used in this file"
+
 #: src/app/main/ui/workspace/sidebar/assets/components.cljs:177, src/app/main/ui/workspace/sidebar/options/menus/component.cljs:602
 msgid "workspace.assets.components.num-variants"
 msgstr "%s Variants"
+
+#: src/app/main/ui/workspace/sidebar/assets/components.cljs:59
+msgid "workspace.assets.components.used-in-file"
+msgstr "Instances in this file: %s"
 
 #: src/app/main/ui/workspace/sidebar/assets/groups.cljs:160
 msgid "workspace.assets.create-group"

@@ -68,7 +68,7 @@
 
 .component-item-list {
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: auto 1fr auto auto;
   align-items: center;
   column-gap: var(--sp-s);
   padding: var(--sp-xxs);
@@ -138,6 +138,15 @@
   top: var(--sp-xxs);
   border-radius: $br-8;
   background-color: var(--color-background-tertiary);
+}
+
+.component-item-uses {
+  @include t.use-typography("body-small");
+
+  color: var(--color-foreground-secondary);
+  flex-shrink: 0;
+  order: 4;
+  white-space: nowrap;
 }
 
 .component-item-dragging {
