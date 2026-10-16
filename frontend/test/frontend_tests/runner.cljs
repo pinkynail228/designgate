@@ -27,6 +27,7 @@
    [frontend-tests.data.workspace-pages-test]
    [frontend-tests.data.workspace-path-edition-test]
    [frontend-tests.data.workspace-reflow-test]
+   [frontend-tests.data.workspace-shortcuts-figma-displace-test]
    [frontend-tests.data.workspace-shortcuts-figma-extra-test]
    [frontend-tests.data.workspace-shortcuts-figma-test]
    [frontend-tests.data.workspace-shortcuts-test]
@@ -139,6 +140,7 @@
    'frontend-tests.data.workspace-pages-test
    'frontend-tests.data.workspace-path-edition-test
    'frontend-tests.data.workspace-reflow-test
+   'frontend-tests.data.workspace-shortcuts-figma-displace-test
    'frontend-tests.data.workspace-shortcuts-figma-extra-test
    'frontend-tests.data.workspace-shortcuts-figma-test
    'frontend-tests.data.workspace-shortcuts-test

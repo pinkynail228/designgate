@@ -55,11 +55,12 @@
         customized?      (let [c (get-in custom-shortcuts [:workspace id])]
                            (and c (not= c "")))]
     [:span {:class (stl/css :shortcut)}
-     (for [sc (scd/split-sc (sc/get-effective-tooltip id custom-shortcuts))]
-       [:span {:class (stl/css-case :shortcut-key true
-                                    :customized-key customized?)
-               :key sc}
-        sc])]))
+     (when-let [tooltip (sc/get-effective-tooltip id custom-shortcuts)]
+       (for [sc (scd/split-sc tooltip)]
+         [:span {:class (stl/css-case :shortcut-key true
+                                      :customized-key customized?)
+                 :key sc}
+          sc]))]))
 
 (mf/defc help-info-menu*
   {::mf/private true

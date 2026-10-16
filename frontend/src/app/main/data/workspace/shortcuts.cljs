@@ -184,8 +184,8 @@
                           :section [:workspace]
                           :fn #(emit-when-no-readonly (dw/group-selected))}
 
-   :ungroup              {:tooltip (ds/shift "G")
-                          :command "shift+g"
+   :ungroup              {:tooltip (ds/meta-shift "G")
+                          :command (ds/c-mod "shift+g")
                           :subsections [:modify-layers]
                           :section [:workspace]
                           :fn #(emit-when-no-readonly (dw/ungroup-selected))}
@@ -203,13 +203,13 @@
                           :fn #(emit-when-no-readonly (dw/unmask-group))}
 
    :create-component-variant {:tooltip (ds/meta-alt "K")
-                              :command [(ds/ca-mod "k") (ds/c-mod "k")]
+                              :command (ds/ca-mod "k")
                               :subsections [:modify-layers]
                               :section [:workspace]
                               :fn #(emit-when-no-readonly (dwv/add-component-or-variant))}
 
    :detach-component     {:tooltip (ds/meta-alt "B")
-                          :command [(ds/ca-mod "b") (ds/c-mod "shift+k")]
+                          :command (ds/ca-mod "b")
                           :subsections [:modify-layers]
                           :section [:workspace]
                           :fn #(emit-when-no-readonly dwl/detach-selected-components)}
@@ -388,8 +388,8 @@
     :subsections [:main-menu]
     :fn #(st/emit! (dwcm/toggle-comments-visibility {:origin "workspace-shortcuts"}))}
 
-   :insert-image         {:tooltip (ds/shift "K")
-                          :command "shift+k"
+   :insert-image         {:tooltip (ds/meta-shift "K")
+                          :command [(ds/c-mod "shift+k") "shift+k"]
                           :section [:workspace]
                           :subsections [:tools]
                           :fn #(-> "image-upload" dom/get-element dom/click)}
@@ -482,8 +482,7 @@
 
    ;; MAIN MENU
 
-   :toggle-rulers        {:tooltip (ds/meta-shift "R")
-                          :command (ds/c-mod "shift+r")
+   :toggle-rulers        {:command []
                           :section [:workspace]
                           :subsections [:main-menu]
                           :fn #(st/emit! (toggle-layout-flag :rulers))}
@@ -502,8 +501,7 @@
                           :section [:workspace]
                           :fn #(st/emit! (toggle-layout-flag :display-guides))}
 
-   :toggle-alignment     {:tooltip (ds/meta "\\")
-                          :command (ds/c-mod "\\")
+   :toggle-alignment     {:command []
                           :subsections [:main-menu]
                           :section [:workspace]
                           :fn #(st/emit! (toggle-layout-flag :dynamic-alignment))}
@@ -533,8 +531,7 @@
                           :fn #(st/emit!
                                 (de/show-workspace-export-dialog {:origin "workspace:shortcuts"}))}
 
-   :toggle-snap-ruler-guide {:tooltip (ds/meta-shift "G")
-                             :command (ds/c-mod "shift+g")
+   :toggle-snap-ruler-guide {:command []
                              :subsections [:main-menu]
                              :section [:workspace]
                              :fn #(st/emit! (toggle-layout-flag :snap-ruler-guides))}
@@ -592,8 +589,8 @@
                                                           (dw/remove-layout-flag :colorpalette)
                                                           (toggle-layout-flag :textpalette)))}
 
-   :hide-ui              {:tooltip "\\"
-                          :command "\\"
+   :hide-ui              {:tooltip (ds/meta "\\")
+                          :command (ds/c-mod "\\")
                           :subsections [:panels :basics]
                           :section [:workspace :basics]
                           :fn #(st/emit! (toggle-layout-flag :hide-ui))}
@@ -682,7 +679,7 @@
                           :fn #(st/emit! (dw/select-next-shape))}
 
    :select-parent-layer  {:tooltip (ds/shift ds/enter)
-                          :command "shift+enter"
+                          :command ["shift+enter" "\\"]
                           :subsections [:navigation-workspace]
                           :section [:workspace]
                           :fn #(emit-when-no-readonly (dw/select-parent-layer))}

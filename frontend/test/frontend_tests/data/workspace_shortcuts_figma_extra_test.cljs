@@ -10,10 +10,13 @@
    [app.main.data.workspace.shortcuts :as shortcuts]
    [cljs.test :as t :include-macros true]))
 
-;; New bindings that match Figma, added as extra commands next to the
-;; keys Penpot already used. Expected strings go through the same
-;; platform helpers as the table, so they resolve identically on macOS
-;; and on Windows/Linux.
+;; Extra Figma bindings. Most sit next to the key already used for that
+;; action, so both stay bound and `:old-command` is asserted too. It is
+;; absent for the actions whose previous key does a different action in
+;; Figma (see workspace_shortcuts_figma_displace_test), where only the
+;; Figma key remains. Expected strings go through the same platform
+;; helpers as the table, so they resolve identically on macOS and on
+;; Windows/Linux.
 
 (def ^:private expected-bindings
   [{:action :rename
@@ -22,11 +25,9 @@
     :tooltip (ds/meta "R")}
    {:action :create-component-variant
     :new-command (ds/ca-mod "k")
-    :old-command (ds/c-mod "k")
     :tooltip (ds/meta-alt "K")}
    {:action :detach-component
     :new-command (ds/ca-mod "b")
-    :old-command (ds/c-mod "shift+k")
     :tooltip (ds/meta-alt "B")}
    {:action :toggle-layers
     :new-command (ds/a-mod "1")
@@ -56,13 +57,15 @@
    #{}
    shortcuts/shortcuts))
 
-(t/deftest figma-bindings-are-added-without-dropping-penpot-keys
+(t/deftest figma-bindings-are-added-with-the-expected-keys
   (doseq [{:keys [action new-command old-command tooltip]} expected-bindings]
     (t/testing (str action)
       (let [commands (commands-of action)]
-        (t/is (and (contains? commands new-command)
-                   (contains? commands old-command))
-              (str action " should bind " new-command " and keep " old-command)))
+        (t/is (contains? commands new-command)
+              (str action " should bind " new-command))
+        (when old-command
+          (t/is (contains? commands old-command)
+                (str action " should keep " old-command))))
       (t/is (= #{action} (command-owners new-command))
             (str new-command " should be bound to " action " only"))
       (t/is (= tooltip (:tooltip (get shortcuts/shortcuts action)))
