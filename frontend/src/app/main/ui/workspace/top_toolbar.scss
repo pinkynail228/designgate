@@ -37,7 +37,7 @@
   // set by the workspace to the height of an expanded palette, in CSS pixels.
   // It is applied as a margin so that the bar follows a palette resize at once,
   // unlike the animated `inset-block-end` used by the hidden transition.
-  margin-block-end: var(--palette-height, 0px);
+  margin-block-end: var(--palette-height, 0);
   inset-block-end: var(--toolbar-position-y);
   will-change: auto;
 
