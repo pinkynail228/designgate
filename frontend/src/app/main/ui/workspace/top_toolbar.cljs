@@ -246,7 +246,7 @@
          [:li {:key (name id)
                :role "none"}
           [:> icon-button* {:variant "ghost"
-                            :tooltip-placement "bottom"
+                            :tooltip-placement "top"
                             :role "menuitemradio"
                             :aria-label (tool-label id)
                             :aria-pressed (= drawtool id)
@@ -284,7 +284,7 @@
 
     [:*
      [:> icon-button* {:variant "ghost"
-                       :tooltip-placement "bottom"
+                       :tooltip-placement "top"
                        :aria-label (tool-label :image)
                        :icon i/img
                        :on-click on-display-uploader}]
@@ -348,7 +348,6 @@
   [{:keys [layout]}]
   (let [selected-drawing-tool (mf/deref refs/selected-drawing-tool)
         selected-edition      (mf/deref refs/selected-edition)
-        rulers-enabled        (mf/deref refs/rulers?)
         toolbar-hidden        (mf/deref toolbar-hidden-ref)
         mcp                   (mf/deref refs/mcp)
 
@@ -412,13 +411,12 @@
              :aria-label (tr "workspace.toolbar.label")
              :tab-index "0"
              :class (stl/css-case :toolbar true
-                                  :no-rulers (not rulers-enabled)
                                   :hidden toolbar-hidden)}
        [:ul {:class (stl/css :toolbar-options)
              :data-testid "toolbar-options"}
         [:li {:class (stl/css :toolbar-option)}
          [:> icon-button* {:variant "ghost"
-                           :tooltip-placement "bottom"
+                           :tooltip-placement "top"
                            :aria-pressed (and (nil? selected-drawing-tool)
                                               (not selected-edition))
                            :aria-label (tr "workspace.toolbar.move"  (sc/get-tooltip :move))
@@ -427,7 +425,7 @@
 
         [:li {:class (stl/css :toolbar-option)}
          [:> icon-button* {:variant "ghost"
-                           :tooltip-placement "bottom"
+                           :tooltip-placement "top"
                            :aria-pressed (= selected-drawing-tool :frame)
                            :aria-label (tool-label :frame)
                            :icon i/board
@@ -441,7 +439,7 @@
 
         [:li {:class (stl/css :toolbar-option)}
          [:> icon-button* {:variant "ghost"
-                           :tooltip-placement "bottom"
+                           :tooltip-placement "top"
                            :aria-pressed (= selected-drawing-tool :text)
                            :aria-label (tool-label :text)
                            :icon i/text
@@ -462,7 +460,7 @@
         (when plugins-enabled?
           [:li {:class (stl/css :toolbar-option)}
            [:> icon-button* {:variant "ghost"
-                             :tooltip-placement "bottom"
+                             :tooltip-placement "top"
                              :aria-label (tool-label :plugins)
                              :icon i/puzzle
                              :on-click on-display-plugins-manager
@@ -471,7 +469,7 @@
         (when *assert*
           [:li {:class (stl/css :toolbar-option)}
            [:> icon-button* {:variant "ghost"
-                             :tooltip-placement "bottom"
+                             :tooltip-placement "top"
                              :aria-pressed (contains? layout :debug-panel)
                              :aria-label (tool-label :debug)
                              :icon i/bug

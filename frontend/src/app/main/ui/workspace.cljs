@@ -71,7 +71,17 @@
 
         colorpalette?  (:colorpalette layout)
         textpalette?   (:textpalette layout)
+        hide-palettes? (:hide-palettes layout)
         hide-ui?       (:hide-ui layout)
+
+        ;; Height of the visible palette in CSS pixels: zero when no palette is
+        ;; shown or when it is collapsed to its handle. The toolbar inherits it
+        ;; as a custom property, reusing the size reported by the palette.
+        palette-height
+        (when (and (or colorpalette? textpalette?)
+                   (not hide-palettes?)
+                   (not hide-ui?))
+          @palete-size)
 
         on-resize
         (mf/use-fn
@@ -95,6 +105,7 @@
      [:section
       {:key (dm/str "workspace-" page-id)
        :class (stl/css :workspace-content)
+       :style #js {"--palette-height" (dm/str (or palette-height 0) "px")}
        :ref node-ref}
 
       [:section {:class (stl/css :workspace-viewport)}

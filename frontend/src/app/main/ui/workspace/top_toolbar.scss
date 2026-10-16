@@ -12,8 +12,7 @@
 @use "ds/z-index.scss" as *;
 
 .toolbar {
-  --toolbar-position-y: #{$sz-28};
-  --toolbar-offset-y: 0px;
+  --toolbar-position-y: var(--sp-s);
   --menu-border-color: var(--color-background-quaternary);
   --menu-background-color: var(--color-background-primary);
 
@@ -30,24 +29,32 @@
   z-index: var(--z-index-panels);
   background-color: var(--menu-background-color);
   transition:
-    inset-block-start 0.3s,
+    inset-block-end 0.3s,
     block-size 0.3s,
     opacity 0.3s;
-  inset-block-start: calc(var(--toolbar-position-y) + var(--toolbar-offset-y));
+
+  // Anchored to the bottom edge of the canvas viewport. `--palette-height` is
+  // set by the workspace to the height of an expanded palette, in CSS pixels.
+  // It is applied as a margin so that the bar follows a palette resize at once,
+  // unlike the animated `inset-block-end` used by the hidden transition.
+  margin-block-end: var(--palette-height, 0px);
+  inset-block-end: var(--toolbar-position-y);
   will-change: auto;
 
-  &.no-rulers {
-    --toolbar-position-y: 0px;
-    --toolbar-offset-y: 8px;
-  }
-
   &.hidden {
-    --toolbar-offset-y: -4px;
+    // The bar slides down and out of the canvas: the collapsed strip sinks
+    // below the bottom edge, leaving only the handle visible there.
+    --toolbar-position-y: calc(-1 * var(--sp-xs));
 
     block-size: $sz-16;
     z-index: 1;
-    border-radius: 0 0 $br-8 $br-8;
-    border-block-start: 0;
+    border-radius: $br-8 $br-8 0 0;
+    border-block-end: 0;
+
+    .toolbar-handler {
+      // Keep the handle at the bottom edge while the bar sinks below it.
+      inset-block-end: var(--sp-xs);
+    }
 
     .toolbar-options {
       opacity: 0;
@@ -79,10 +86,10 @@
   visibility: hidden;
   pointer-events: none;
   position: absolute;
-  inset-block-start: 140%;
+  inset-block-end: 140%;
   inset-inline-start: 50%;
   transform: translateX(-50%);
-  margin-block-start: var(--sp-xxs);
+  margin-block-end: var(--sp-xxs);
   padding: var(--sp-xxs) 0;
   border-radius: $br-8;
   border: #{$b-1} solid var(--menu-border-color);
@@ -155,7 +162,7 @@
 .toolbar-mcp-menu {
   position: absolute;
   left: 0;
-  top: $sz-36;
+  bottom: $sz-36;
 }
 
 .toolbar-mcp-dropdown {
