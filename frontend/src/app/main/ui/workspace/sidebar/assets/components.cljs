@@ -15,6 +15,7 @@
    [app.main.data.event :as ev]
    [app.main.data.modal :as modal]
    [app.main.data.workspace :as dw]
+   [app.main.data.workspace.component-uses :as cu]
    [app.main.data.workspace.libraries :as dwl]
    [app.main.data.workspace.media :as dwm]
    [app.main.data.workspace.shapes :as dwsh]
@@ -50,10 +51,18 @@
         container  (ctf/get-component-page data component)]
     [root-shape container]))
 
+(defn- uses-label
+  "Text of the uses count of a component on the current file."
+  [uses-count]
+  (if (zero? uses-count)
+    (tr "workspace.assets.components.not-used-in-file")
+    (tr "workspace.assets.components.used-in-file" uses-count)))
+
 (mf/defc components-item*
   [{:keys [component renaming is-listing-thumbs selected
            file-id on-asset-click on-context-menu on-drag-start do-rename
-           cancel-rename selected-full selected-paths is-local num-variants]}]
+           cancel-rename selected-full selected-paths is-local num-variants
+           used-counts]}]
 
   (let [item-ref       (mf/use-ref)
 
@@ -62,6 +71,14 @@
 
         read-only?     (mf/use-ctx ctx/workspace-read-only?)
         component-id   (:id component)
+
+        ;; NOTE: `used-counts` is nil while the file is not fully loaded, so
+        ;; the count is unknown and nothing is displayed for it.
+        uses-count     (when (some? used-counts)
+                         (get used-counts component-id 0))
+
+        uses-text      (when (some? uses-count)
+                         (uses-label uses-count))
 
         visible?       (h/use-visible item-ref :once? true)
         renaming?      (= renaming (:id component))
@@ -131,6 +148,7 @@
                                 :component-item-list (not is-listing-thumbs)
                                 :component-item-selected (contains? selected (:id component)))
            :id (dm/str "component-shape-id-" (:id component))
+           :title uses-text
            :draggable (and (not read-only?) (not renaming?))
            :on-click on-component-click
            :on-double-click on-component-double-click
@@ -175,7 +193,10 @@
           [:span {:class (stl/css-case :component-item-variant-mark true
                                        :component-item-grid-variant-mark is-listing-thumbs)
                   :title (tr "workspace.assets.components.num-variants" num-variants)}
-           [:> icon* {:icon-id i/variant :size "s"}]])])]))
+           [:> icon* {:icon-id i/variant :size "s"}]])
+
+        (when (and (some? uses-text) (not is-listing-thumbs))
+          [:span {:class (stl/css :component-item-uses)} uses-text])])]))
 
 (defn- count-leaves
   "Counts the total number of leaf elements in a nested map structure.
@@ -192,7 +213,7 @@
 (mf/defc components-group*
   [{:keys [file-id prefix groups open-groups is-force-open renaming is-listing-thumbs selected on-asset-click
            on-drag-start do-rename cancel-rename on-rename-group on-group on-ungroup on-delete-group on-context-menu
-           selected-full is-local count-variants on-group-combine-variants]}]
+           selected-full is-local count-variants on-group-combine-variants used-counts]}]
 
   (let [group-open?    (if (false? (get open-groups prefix)) ;; if the user has closed it specifically, respect that
                          false
@@ -285,6 +306,7 @@
              :do-rename do-rename
              :cancel-rename cancel-rename
              :is-local is-local
+             :used-counts used-counts
              :num-variants (count-variants (:variant-id component))}])]
 
         (for [[path-item content] groups]
@@ -309,6 +331,7 @@
                                    :on-group-combine-variants on-group-combine-variants
                                    :selected-full selected-full
                                    :is-local is-local
+                                   :used-counts used-counts
                                    :count-variants count-variants}]))])]))
 
 (mf/defc components-section*
@@ -334,6 +357,18 @@
         menu-state               (mf/use-state cmm/initial-context-menu-state)
         read-only?               (mf/use-ctx ctx/workspace-read-only?)
         toggle-list-style        (mf/use-ctx cmm/assets-toggle-list-style)
+
+        ;; Number of instances of the components of this file that live on the
+        ;; file being edited. It is nil when the section is closed, and also
+        ;; while the edited file is not fully loaded, so components show no
+        ;; count instead of a wrong zero.
+        used-counts-ref          (mf/with-memo [file-id is-open]
+                                   (l/derived (fn [file]
+                                                (when ^boolean is-open
+                                                  (cu/count-uses (:data file) file-id)))
+                                              refs/file))
+
+        used-counts              (mf/deref used-counts-ref)
 
         selected                 (:components selected)
 
@@ -636,6 +671,7 @@
                                :on-context-menu on-context-menu
                                :selected-full selected-full
                                :is-local ^boolean is-local
+                               :used-counts used-counts
                                :count-variants count-variants}])
 
       [:> cmm/assets-context-menu*
