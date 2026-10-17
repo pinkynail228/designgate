@@ -28,7 +28,7 @@ cp "$here/agent-settings.json" "$work/.claude/settings.local.json"
 python3 -c 'import json,sys; print(json.dumps({"task": open(sys.argv[1]).read().strip() + "\n\n" + open(sys.argv[2]).read()}))' \
   "$task" "$here/preamble.md" > "$work.input.json"
 runtime=$here/runtime.json
-if [ "${ZS_RUNTIME:-}" = deepseek ] || [ "${ZS_RUNTIME:-}" = deepseek-fast ]; then
+if [ "${ZS_RUNTIME:-}" = deepseek ] || [ "${ZS_RUNTIME:-}" = deepseek-fast ] || [ "${ZS_RUNTIME:-}" = sol1 ]; then
   runtime=$here/runtime-$ZS_RUNTIME.json
   port=${ADAPTER_PORT:-8798}
   python3 -c 'import sys,urllib.request; sys.exit(urllib.request.urlopen(sys.argv[1], timeout=2).read() != b"{\"adapter\":\"designgate-yandex\"}")' \
@@ -37,5 +37,8 @@ if [ "${ZS_RUNTIME:-}" = deepseek ] || [ "${ZS_RUNTIME:-}" = deepseek-fast ]; th
   export GATEWAY_BASE_URL=http://127.0.0.1:$port/v1 GATEWAY_API_KEY=dummy
 fi
 cd "$work"
-exec zeroshot run --title "designgate $name" --template software-change --input "$work.input.json" \
+# ZS_RUNTIME=sol1: one reviewer (acceptance + code) and at most 3 change iterations (critic/12).
+graph=(--template software-change)
+[ "${ZS_RUNTIME:-}" = sol1 ] && graph=(--graph "$here/graph-one-reviewer.json")
+exec zeroshot run --title "figmapot $name" "${graph[@]}" --input "$work.input.json" \
   --runtime-config "$runtime" --submission-key "designgate-$name-$(git rev-parse --short HEAD)${ZS_ATTEMPT:+-$ZS_ATTEMPT}" "$@"
