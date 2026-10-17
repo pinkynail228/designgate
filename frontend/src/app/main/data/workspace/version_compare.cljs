@@ -128,12 +128,109 @@
                    (map token-entry)
                    (sort-entries))}))
 
+(defn- page-shapes
+  "Shapes of a page indexed by id. The root frame (`uuid/zero`) is a
+  structural node and is never reported as a layer."
+  [page]
+  (into {} (remove (fn [[id _]] (= id uuid/zero))) (or (:objects page) {})))
+
+(defn- layer-entry
+  [shape]
+  {:id (:id shape)
+   :name (or (:name shape) "")
+   :type (:type shape)})
+
+(defn- sort-layers
+  [entries]
+  (->> entries
+       (sort-by (juxt :name #(str (:id %))))
+       (vec)))
+
+(defn- diff-page-shapes
+  "Diff of two page `:objects` maps, as the `:added` `:changed` and
+  `:removed` lists of `{:id :name :type}` entries sorted by name."
+  [old-page new-page]
+  (let [old-shapes (page-shapes old-page)
+        new-shapes (page-shapes new-page)
+        added      (->> (keys new-shapes)
+                        (remove #(contains? old-shapes %))
+                        (map #(layer-entry (get new-shapes %))))
+        changed    (->> (keys new-shapes)
+                        (filter #(contains? old-shapes %))
+                        (filter #(not= (clean (get old-shapes %))
+                                       (clean (get new-shapes %))))
+                        (map #(layer-entry (get new-shapes %))))
+        removed    (->> (keys old-shapes)
+                        (remove #(contains? new-shapes %))
+                        (map #(layer-entry (get old-shapes %))))]
+    {:added   (sort-layers added)
+     :changed (sort-layers changed)
+     :removed (sort-layers removed)}))
+
+(defn- changed-page?
+  "True when a page kept in both datas holds a reportable change: a new
+  name or at least one layer added, changed or removed."
+  [old-page new-page diff]
+  (or (not= (:name old-page) (:name new-page))
+      (seq (:added diff))
+      (seq (:changed diff))
+      (seq (:removed diff))))
+
+(defn diff-pages
+  "Pure diff of the page contents of two file `:data` maps. `old-data` is
+  the saved version data and `new-data` the current file data. Returns a
+  vector in current page order (then the removed pages) of
+  `{:id :name :status :added :changed :removed}` entries, where `:status`
+  is `:added`, `:changed` or `:removed` and every layer list holds
+  `{:id :name :type}` entries sorted by name. Pages without change and
+  with the same name are left out; the root frame is never reported."
+  [old-data new-data]
+  (let [old-data  (or old-data {})
+        new-data  (or new-data {})
+        old-index (or (:pages-index old-data) {})
+        new-index (or (:pages-index new-data) {})
+        old-order (vec (:pages old-data))
+        new-order (vec (:pages new-data))
+        new-ids   (set new-order)
+
+        current
+        (for [page-id new-order
+              :let [page (get new-index page-id)]
+              :when page]
+          (if (contains? old-index page-id)
+            (let [old-page (get old-index page-id)
+                  diff     (diff-page-shapes old-page page)]
+              (when (changed-page? old-page page diff)
+                (assoc diff
+                       :id page-id
+                       :name (or (:name page) "")
+                       :status :changed)))
+            (assoc (diff-page-shapes nil page)
+                   :id page-id
+                   :name (or (:name page) "")
+                   :status :added)))
+
+        removed
+        (for [page-id old-order
+              :when (not (contains? new-ids page-id))
+              :let [page (get old-index page-id)]
+              :when page]
+          (assoc (diff-page-shapes page nil)
+                 :id page-id
+                 :name (or (:name page) "")
+                 :status :removed))]
+
+    (->> (concat current removed)
+         (remove nil?)
+         (vec))))
+
 (defn diff-assets
   "Compute the asset differences between two file `:data` maps. `old-data`
   is the saved version data and `new-data` the current file data. Returns
   a map with one entry per asset kind, each one holding the `:added`,
   `:changed` and `:removed` lists of `{:id :name :path}` entries sorted
-  by path and name."
+  by path and name, plus a `:pages` entry with the per page layer diff
+  (see `diff-pages`)."
   [old-data new-data]
   (let [old-data (or old-data {})
         new-data (or new-data {})]
@@ -147,7 +244,8 @@
                               (:typographies new-data)
                               (constantly false))
      :tokens       (diff-tokens (:tokens-lib old-data)
-                                (:tokens-lib new-data))}))
+                                (:tokens-lib new-data))
+     :pages        (diff-pages old-data new-data)}))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; EVENTS

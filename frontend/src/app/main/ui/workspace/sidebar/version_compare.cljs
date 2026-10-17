@@ -43,6 +43,13 @@
    :changed "workspace.versions.compare.marker.changed"
    :removed "workspace.versions.compare.marker.removed"})
 
+(def ^:private page-status-label
+  {:added "workspace.versions.compare.layers.page.added"
+   :changed "workspace.versions.compare.layers.page.changed"
+   :removed "workspace.versions.compare.layers.page.removed"})
+
+(def ^:private max-layers 20)
+
 (mf/defc compare-row*
   {::mf/private true}
   [{:keys [item kind]}]
@@ -95,6 +102,76 @@
           (for [item removed]
             [:> compare-row* {:key (str "removed-" (:id item)) :item item :kind :removed}])]))]))
 
+(mf/defc compare-layer*
+  {::mf/private true}
+  [{:keys [item kind]}]
+  [:li {:class (stl/css :compare-row)}
+   [:span {:class (stl/css-case :compare-marker true
+                                :compare-marker-added (= kind :added)
+                                :compare-marker-changed (= kind :changed)
+                                :compare-marker-removed (= kind :removed))
+           :title (tr (get marker-label kind))
+           :aria-hidden true}
+    (get marker-char kind)]
+   [:span {:class (stl/css :compare-name)} (:name item)]
+   [:span {:class (stl/css :compare-type)} (some-> (:type item) name)]])
+
+(mf/defc compare-page-layers*
+  {::mf/private true}
+  [{:keys [page]}]
+  [:div {:class (stl/css :compare-page)}
+   [:div {:class (stl/css :compare-page-header)}
+    [:span {:class (stl/css :compare-page-name)} (:name page)]
+    [:span {:class (stl/css-case :compare-page-status true
+                                 :compare-page-status-added (= (:status page) :added)
+                                 :compare-page-status-changed (= (:status page) :changed)
+                                 :compare-page-status-removed (= (:status page) :removed))}
+     (tr (get page-status-label (:status page)))]]
+
+   (for [[kind layers] [[:added (:added page)]
+                        [:changed (:changed page)]
+                        [:removed (:removed page)]]
+         :when (seq layers)]
+     [:ul {:key (name kind) :class (stl/css :compare-list)}
+      (for [item (take max-layers layers)]
+        [:> compare-layer* {:key (str (name kind) "-" (:id item)) :item item :kind kind}])
+      (when (> (count layers) max-layers)
+        [:li {:class (stl/css :compare-more)}
+         (tr "workspace.versions.compare.layers.more" (- (count layers) max-layers))])])])
+
+(mf/defc compare-layers-section*
+  {::mf/private true}
+  [{:keys [pages]}]
+  (let [open?   (mf/use-state true)
+        total   (count pages)
+
+        on-toggle
+        (mf/use-fn #(swap! open? not))]
+
+    [:section {:class (stl/css :compare-section)}
+     [:button {:type "button"
+               :class (stl/css :compare-section-header)
+               :aria-expanded @open?
+               :on-click on-toggle}
+      [:> icon* {:icon-id i/layers
+                 :size "m"
+                 :class (stl/css :compare-section-icon)}]
+      [:span {:class (stl/css :compare-section-label)}
+       (tr "workspace.versions.compare.section.layers")]
+      [:span {:class (stl/css :compare-section-count)} (str total)]
+      [:> icon* {:icon-id i/arrow
+                 :size "m"
+                 :class (stl/css-case :compare-section-arrow true
+                                      :open @open?)}]]
+
+     (when @open?
+       (if (zero? total)
+         [:div {:class (stl/css :compare-section-empty)}
+          (tr "workspace.versions.compare.section-empty")]
+         [:div {:class (stl/css :compare-pages)}
+          (for [page pages]
+            [:> compare-page-layers* {:key (str (:id page)) :page page}])]))]))
+
 (mf/defc version-compare*
   []
   (let [versions* (mf/deref versions)
@@ -105,12 +182,13 @@
         (mf/use-fn #(st/emit! (dwvc/clear-compare)))
 
         has-changes?
-        (->> [:components :colors :typographies :tokens]
-             (some (fn [section-key]
-                     (let [section (get data section-key)]
-                       (or (seq (:added section))
-                           (seq (:changed section))
-                           (seq (:removed section)))))))]
+        (or (seq (:pages data))
+            (->> [:components :colors :typographies :tokens]
+                 (some (fn [section-key]
+                         (let [section (get data section-key)]
+                           (or (seq (:added section))
+                               (seq (:changed section))
+                               (seq (:removed section))))))))]
 
     [:div {:class (stl/css :compare-panel)}
      [:> panel-title* {:class (stl/css :compare-title)
@@ -135,7 +213,8 @@
             [:> compare-section* {:key (name section-key)
                                   :icon icon
                                   :label (tr label)
-                                  :data (get data section-key)}])]
+                                  :data (get data section-key)}])
+          [:> compare-layers-section* {:pages (or (:pages data) [])}]]
          [:div {:class (stl/css :compare-state)}
           [:> empty-state* {:icon i/status-tick
                             :text (tr "workspace.versions.compare.empty")}]])

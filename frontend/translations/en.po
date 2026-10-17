@@ -10303,6 +10303,22 @@ msgstr "Could not load the version for comparison"
 msgid "workspace.versions.compare.loading"
 msgstr "Loading changes..."
 
+#: src/app/main/ui/workspace/sidebar/version_compare.cljs:140
+msgid "workspace.versions.compare.layers.more"
+msgstr "and %s more"
+
+#: src/app/main/ui/workspace/sidebar/version_compare.cljs:47
+msgid "workspace.versions.compare.layers.page.added"
+msgstr "Added page"
+
+#: src/app/main/ui/workspace/sidebar/version_compare.cljs:48
+msgid "workspace.versions.compare.layers.page.changed"
+msgstr "Changed page"
+
+#: src/app/main/ui/workspace/sidebar/version_compare.cljs:49
+msgid "workspace.versions.compare.layers.page.removed"
+msgstr "Removed page"
+
 #: src/app/main/ui/workspace/sidebar/version_compare.cljs:42
 msgid "workspace.versions.compare.marker.added"
 msgstr "Added"
@@ -10326,6 +10342,10 @@ msgstr "Colors"
 #: src/app/main/ui/workspace/sidebar/version_compare.cljs:25
 msgid "workspace.versions.compare.section.components"
 msgstr "Components"
+
+#: src/app/main/ui/workspace/sidebar/version_compare.cljs:160
+msgid "workspace.versions.compare.section.layers"
+msgstr "Layers"
 
 #: src/app/main/ui/workspace/sidebar/version_compare.cljs:34
 msgid "workspace.versions.compare.section.tokens"

@@ -132,3 +132,61 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+.compare-pages {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-s);
+}
+
+.compare-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-xs);
+}
+
+.compare-page-header {
+  @include t.use-typography("body-small");
+
+  display: flex;
+  align-items: center;
+  gap: var(--sp-s);
+  padding: 0 var(--sp-s) 0 var(--sp-l);
+  color: var(--color-foreground-secondary);
+}
+
+.compare-page-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.compare-page-status {
+  margin-inline-start: auto;
+  flex: 0 0 auto;
+}
+
+.compare-page-status-added {
+  color: var(--color-accent-success);
+}
+
+.compare-page-status-changed {
+  color: var(--color-accent-primary);
+}
+
+.compare-page-status-removed {
+  color: var(--color-accent-error);
+}
+
+.compare-type {
+  margin-inline-start: auto;
+  flex: 0 0 auto;
+  color: var(--color-foreground-secondary);
+}
+
+.compare-more {
+  @include t.use-typography("body-small");
+
+  padding-inline-start: var(--sp-m);
+  color: var(--color-foreground-secondary);
+}

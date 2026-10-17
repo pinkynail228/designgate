@@ -56,6 +56,32 @@
                    (ctob/add-set (ctob/make-token-set :id set-id :name "core")))]
     (reduce (fn [lib token] (ctob/add-token lib set-id token)) lib tokens)))
 
+(defn- shape
+  [id name type & {:as attrs}]
+  (merge {:id id
+          :name name
+          :type type}
+         attrs))
+
+(defn- root-frame
+  []
+  {:id uuid/zero
+   :name "Root"
+   :type :frame})
+
+(defn- page
+  "A page with its root frame (`uuid/zero`) plus the given `objects`."
+  [id name objects]
+  {:id id
+   :name name
+   :objects (merge {uuid/zero (root-frame)} objects)})
+
+(defn- file-data
+  "A file `:data` map holding `pages` in order."
+  [pages]
+  {:pages (mapv :id pages)
+   :pages-index (into {} (map (juxt :id identity)) pages)})
+
 ;; TESTS
 
 (t/deftest diff-components
@@ -218,6 +244,71 @@
     (t/is (= [{:id removed-id :name "text.size" :path ""}]
              (get-in result [:tokens :removed])))))
 
+(t/deftest diff-pages-added-and-removed
+  (let [kept     (uuid/next)
+        added    (uuid/next)
+        removed  (uuid/next)
+        old-data (file-data [(page kept "Page 1" {})
+                             (page removed "Old page" {})])
+        new-data (file-data [(page kept "Page 1" {})
+                             (page added "New page" {})])
+        result   (dwvc/diff-pages old-data new-data)]
+
+    (t/testing "an unchanged page is left out, the added one comes first"
+      (t/is (= {:id added :name "New page" :status :added
+                :added [] :changed [] :removed []}
+               (first result))))
+
+    (t/testing "the removed page follows the current pages"
+      (t/is (= [{:id removed :name "Old page" :status :removed
+                 :added [] :changed [] :removed []}]
+               (rest result))))))
+
+(t/deftest diff-pages-renamed
+  (let [page-id  (uuid/next)
+        old-data (file-data [(page page-id "Old name" {})])
+        new-data (file-data [(page page-id "New name" {})])]
+
+    (t/testing "a page whose only change is its name is changed, lists empty"
+      (t/is (= [{:id page-id :name "New name" :status :changed
+                 :added [] :changed [] :removed []}]
+               (dwvc/diff-pages old-data new-data))))))
+
+(t/deftest diff-pages-shape-changes
+  (let [page-id  (uuid/next)
+        added-a  (uuid/next)
+        added-b  (uuid/next)
+        changed  (uuid/next)
+        removed  (uuid/next)
+        old-data (file-data [(page page-id "Page"
+                                   {changed (shape changed "Card" :rect)
+                                    removed (shape removed "Old" :rect)})])
+        new-data (file-data [(page page-id "Page"
+                                   {changed (shape changed "Card" :rect :opacity 1)
+                                    added-a (shape added-a "Zeta" :rect)
+                                    added-b (shape added-b "Alpha" :rect)})])
+        result   (dwvc/diff-pages old-data new-data)]
+
+    (t/testing "one changed page grouping layers added, changed and removed by name"
+      (t/is (= [{:id page-id :name "Page" :status :changed
+                 :added [{:id added-b :name "Alpha" :type :rect}
+                         {:id added-a :name "Zeta" :type :rect}]
+                 :changed [{:id changed :name "Card" :type :rect}]
+                 :removed [{:id removed :name "Old" :type :rect}]}]
+               result)))))
+
+(t/deftest diff-pages-root-frame-is-never-reported
+  ;; The root frame differs between both datas and nothing else does, so an
+  ;; empty result is only possible when the root frame is skipped.
+  (let [page-id  (uuid/next)
+        old-data (file-data [(page page-id "Page" {})])
+        new-data (file-data [{:id page-id
+                              :name "Page"
+                              :objects {uuid/zero (assoc (root-frame) :x 10)}}])]
+
+    (t/testing "a change on the root frame alone is not a page change"
+      (t/is (= [] (dwvc/diff-pages old-data new-data))))))
+
 ;; THE ANSWER OF A COMPARE REQUEST
 
 (defn- store-answer
@@ -258,7 +349,8 @@
                                      :removed []}
                         :colors {:added [] :changed [] :removed []}
                         :typographies {:added [] :changed [] :removed []}
-                        :tokens {:added [] :changed [] :removed []}}]
+                        :tokens {:added [] :changed [] :removed []}
+                        :pages []}]
 
     (t/testing "the answer is stored, and only under the compare key"
       (t/is (= (assoc-in state [:workspace-versions :compare]
