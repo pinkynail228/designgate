@@ -1,33 +1,20 @@
 #!/bin/sh
-# Write the Codex home for Zeroshot runs (critic/16): no personal MCP servers, hooks, notify or AGENTS.md,
-# and a sandbox profile for agent shell commands: writes only in workspace roots and /tmp, no network,
-# no reads of personal files (Codex/Claude/ssh/gh credentials, other projects, owner docs, other runs' tmp).
-# Reads stay open for the repo, its git dir, toolchains and /tmp worktrees, so git, rg, python, node and java work.
+# Write the Codex home for Zeroshot runs (critic/16, critic/17): no personal MCP servers, hooks, notify,
+# AGENTS.md, skills or plugins, and a sandbox profile for agent shell commands: writes only in workspace
+# roots and /tmp, no network, the whole home dir unreadable (agents get HOME=/tmp/zs-home), plus other
+# sessions' /tmp dirs. The lane clone and its git dir must live outside $HOME (e.g. /Users/Shared/zs-figmapot):
+# git stats every parent of its common dir, so a lane under a denied home breaks git.
 # Usage: devtools/zeroshot/codex-home.sh [CODEX_HOME]   (default ~/.codex-zs; run.sh calls it before each run)
 set -eu
 home=${1:-$HOME/.codex-zs}
-mkdir -p "$home"
+mkdir -p "$home" /tmp/zs-home
 [ -e "$home/auth.json" ] || ln -s "$HOME/.codex/auth.json" "$home/auth.json"
 repo=$(git rev-parse --path-format=absolute --git-common-dir | sed 's#/\.git$##')
+case "$repo/" in "$HOME"/*) echo "lane $repo is under $HOME; clone it outside (see header)" >&2; exit 2 ;; esac
 python3 - "$home/config.toml" "$HOME" "$repo" <<'EOF'
 import os, sys
 out, home, repo = sys.argv[1:4]
-# Home entries agents may read: the repo path (and its parents), Homebrew/JDK caches, git config.
-keep = {"Documents", ".config", ".gitconfig", ".m2", ".gitlibs", ".clojure", ".cache", ".local", ".serena-zs"}
-deny = []
-def ls(d):
-    try: return sorted(os.listdir(d))
-    except OSError: return []
-for e in ls(home):
-    if e not in keep: deny.append(os.path.join(home, e))
-for e in ls(os.path.join(home, ".config")):
-    if e != "git": deny.append(os.path.join(home, ".config", e))
-# Walk from ~/Documents down to the repo, denying every sibling on the way.
-path = os.path.join(home, "Documents")
-for part in os.path.relpath(repo, path).split(os.sep):
-    for e in ls(path):
-        if e != part: deny.append(os.path.join(path, e))
-    path = os.path.join(path, part)
+deny = [home]
 # Other sessions' and projects' scratch space under /tmp.
 for t in ("claude-501", "zs-zplan", "zs-mac", "cc-socks", "hssh-501", "codex-browser-use", "com.openai.sky.CUAService"):
     if os.path.exists("/private/tmp/" + t): deny.append("/private/tmp/" + t)
@@ -39,9 +26,18 @@ default_permissions = "zs"
 model_verbosity = "low"
 model_reasoning_summary = "concise"
 
-# ChatGPT app connectors (codex_apps: Figma, Sites, search...): unused offline, only add tool schemas.
+[shell_environment_policy]
+set = {{ HOME = "/tmp/zs-home" }}
+
+# ChatGPT app connectors, plugins, Codex's own subagents and the skills catalog: unused in graph nodes,
+# they only add tool schemas and prompt text (critic/17; zeroshot orchestrates the agents).
 [features]
 apps = false
+plugins = false
+multi_agent = false
+
+[skills]
+include_instructions = false
 
 [permissions.zs]
 extends = ":workspace"

@@ -4,10 +4,10 @@ Test environment for every agent in this run (worker, reviewers):
 - In-run checks you can and must run when relevant: `msgfmt -c --statistics -o /dev/null frontend/translations/<lang>.po`, plain `node`/`python3` scripts that read `.po`/source files, `git diff`, `grep`. Use the exact checks the task names.
 - Before any check that writes files, create a private scratch dir with `mktemp -d /tmp/zs-agent-XXXXXX` and use it as TMPDIR. For revert/mutation checks copy the repo into it with `python3 -c 'import shutil,sys; shutil.copytree(".", sys.argv[1], ignore=shutil.ignore_patterns(".git","node_modules",".shadow-cljs","target",".pnpm-store"))' /tmp/zs-agent-.../repo`; never revert files in the shared worktree. `rm -rf` your scratch dir before you finish.
 - Do not commit, push, or use the network.
-- Shell commands run in a sandbox: write only inside the worktree and `/tmp`, no network, and files outside the repo (home dir, other projects) are unreadable. If a check you need is blocked by the sandbox, do not work around it: report it as the result.
+- Shell commands run in a sandbox: write only inside the worktree and `/tmp`, no network, the home dir is unreadable (`HOME` is `/tmp/zs-home`). If a check you need is blocked by the sandbox, do not work around it: report it as the result.
 - Code navigation: the Serena tools `get_symbols_overview`, `find_symbol`, `find_referencing_symbols` (Clojure, read-only) find definitions and call sites across `frontend/` and `common/` (their line numbers are 0-based: add 1 for `file:line`); use them before wide `rg` searches when tracing who uses a function or key. `rg` stays fine for text, keywords and translations. Edit files with your normal tools.
 
-Repository invariants (see AGENTS.md, DesignGate overrides first):
+Repository invariants (on top of the FigmaPot agent rules in AGENTS.override.md):
 - Touch only the paths the task allows. A file outside them, including a new untracked file, is a scope failure.
 - User-visible branding stays Penpot; FigmaPot is the fork name only and never appears in the UI. Translations keep every placeholder of the `en.po` msgid (`%s`, `%d`, `{{...}}`) and Russian plural forms.
 - Keep the diff small and in upstream style: it must merge with future Penpot releases.
@@ -19,4 +19,4 @@ Roles in this repo (on top of the graph's built-in instructions):
 - Code reviewer: correctness, invariants above, scope (allowed paths), that each new test would fail when its guarded behavior is removed. Reject only for substantive issues; every rejection names the violated criterion or invariant, `file:line`, and a check that shows it. Do not repeat a rejection the worker already answered unless you add new evidence.
 - Acceptance reviewer: verify each criterion with concrete evidence. List separately what is left to CI, preview or the owner; never mark those as passed and do not reject only because they are pending.
 - Repair: fix only the reviewers' findings without weakening the requested behavior.
-- Everyone: leave AGENTS.md, STATE.md and devtools/zeroshot alone unless the task says otherwise. If Zeroshot itself gets in the way, say so in your summary.
+- Everyone: leave AGENTS.md, AGENTS.override.md and devtools/zeroshot alone unless the task says otherwise. If Zeroshot itself gets in the way, say so in your summary.

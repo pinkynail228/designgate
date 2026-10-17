@@ -50,6 +50,12 @@ sh "$here/codex-home.sh" "$CODEX_HOME"
 git -C "$work" update-index --skip-worktree .serena/project.yml
 printf '%s\n' '# Zeroshot run: Clojure only, no edits through Serena.' 'languages:' '- clojure' 'read_only: true' > "$work/.serena/project.local.yml"
 [ -d "$work/.serena/cache" ] || [ ! -d "$repo/.serena/cache" ] || cp -R "$repo/.serena/cache" "$work/.serena/cache"
+# Worker/reviewer rules replace the repo AGENTS.md (critic/17): read-only copy, hidden from git status,
+# its hash recorded so scope-check can tell it was not edited.
+rm -f "$work/AGENTS.override.md"; cp "$here/AGENTS.worker.md" "$work/AGENTS.override.md"; chmod 444 "$work/AGENTS.override.md"
+grep -qx '/AGENTS.override.md' "$(git -C "$work" rev-parse --git-path info/exclude)" 2>/dev/null \
+  || echo '/AGENTS.override.md' >> "$(git -C "$work" rev-parse --git-path info/exclude)"
+shasum -a 256 "$here/AGENTS.worker.md" | cut -d' ' -f1 > "$work.agents.sha"
 cd "$work"
 # ZS_RUNTIME=sol1: one reviewer (acceptance + code) and at most 3 change iterations (critic/12);
 # sol1m: same graph with the reviewer at medium effort (calibration against sol1).
