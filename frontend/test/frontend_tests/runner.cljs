@@ -22,6 +22,7 @@
    [frontend-tests.data.workspace-comments-test]
    [frontend-tests.data.workspace-component-uses-test]
    [frontend-tests.data.workspace-interactions-test]
+   [frontend-tests.data.workspace-layout-default-test]
    [frontend-tests.data.workspace-mcp-test]
    [frontend-tests.data.workspace-media-test]
    [frontend-tests.data.workspace-pages-test]
@@ -135,6 +136,7 @@
    'frontend-tests.data.workspace-comments-test
    'frontend-tests.data.workspace-component-uses-test
    'frontend-tests.data.workspace-interactions-test
+   'frontend-tests.data.workspace-layout-default-test
    'frontend-tests.data.workspace-mcp-test
    'frontend-tests.data.workspace-media-test
    'frontend-tests.data.workspace-pages-test
