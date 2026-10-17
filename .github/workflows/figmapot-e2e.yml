@@ -56,6 +56,8 @@ jobs:
             -w /home/penpot/penpot/frontend \
             "$DEVENV_IMAGE" bash -c '
               set -e
+              # -e CI=true alone still gave local 5 s expect timeouts (run 39039857507).
+              export CI=true
               pnpm install
               ./scripts/build
               pnpm exec playwright install chromium
