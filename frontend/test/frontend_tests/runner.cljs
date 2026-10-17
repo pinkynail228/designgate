@@ -30,6 +30,7 @@
    [frontend-tests.data.workspace-shortcuts-figma-displace-test]
    [frontend-tests.data.workspace-shortcuts-figma-extra-test]
    [frontend-tests.data.workspace-shortcuts-figma-test]
+   [frontend-tests.data.workspace-shortcuts-pixel-grid-test]
    [frontend-tests.data.workspace-shortcuts-test]
    [frontend-tests.data.workspace-texts-test]
    [frontend-tests.data.workspace-thumbnails-test]
@@ -143,6 +144,7 @@
    'frontend-tests.data.workspace-shortcuts-figma-displace-test
    'frontend-tests.data.workspace-shortcuts-figma-extra-test
    'frontend-tests.data.workspace-shortcuts-figma-test
+   'frontend-tests.data.workspace-shortcuts-pixel-grid-test
    'frontend-tests.data.workspace-shortcuts-test
    'frontend-tests.data.workspace-texts-test
    'frontend-tests.data.workspace-thumbnails-test
