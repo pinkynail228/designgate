@@ -482,7 +482,8 @@
 
    ;; MAIN MENU
 
-   :toggle-rulers        {:command []
+   :toggle-rulers        {:tooltip (ds/shift "R")
+                          :command ["shift+r"]
                           :section [:workspace]
                           :subsections [:main-menu]
                           :fn #(st/emit! (toggle-layout-flag :rulers))}
@@ -512,14 +513,16 @@
                           :section [:workspace]
                           :fn #(st/emit! (dw/toggle-file-thumbnail-selected))}
 
-   :show-pixel-grid      {:tooltip (ds/shift ",")
-                          :command "shift+,"
+   :show-pixel-grid      {:tooltip (ds/shift "'")
+                          :command ["shift+'" "shift+,"]
                           :subsections [:main-menu]
                           :section [:workspace]
                           :fn #(st/emit! (toggle-layout-flag :show-pixel-grid))}
 
-   :snap-pixel-grid      {:command ","
-                          :tooltip ","
+   :snap-pixel-grid      {:command [(ds/c-mod "shift+'") (ds/c-mod "shift+219") ","]
+                          ;;https://github.com/ccampbell/mousetrap/issues/85
+                          :show-command (ds/c-mod "shift+'")
+                          :tooltip (ds/meta-shift "'")
                           :subsections [:main-menu]
                           :section [:workspace]
                           :fn #(st/emit! (toggle-layout-flag :snap-pixel-grid))}
@@ -536,10 +539,7 @@
                              :section [:workspace]
                              :fn #(st/emit! (toggle-layout-flag :snap-ruler-guides))}
 
-   :toggle-snap-guides      {:tooltip (ds/meta-shift "'")
-                             ;;https://github.com/ccampbell/mousetrap/issues/85
-                             :command [(ds/c-mod "shift+'") (ds/c-mod "shift+219")]
-                             :show-command (ds/c-mod "shift+'")
+   :toggle-snap-guides      {:command []
                              :subsections [:main-menu]
                              :section [:workspace]
                              :fn #(st/emit! (toggle-layout-flag :snap-guides))}

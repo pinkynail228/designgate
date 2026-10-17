@@ -54,7 +54,7 @@
              (:command (get shortcuts/shortcuts :insert-image))))))
 
 (t/deftest displaced-actions-keep-their-toolbar-entry
-  (doseq [id [:toggle-rulers :toggle-alignment :toggle-snap-ruler-guide]]
+  (doseq [id [:toggle-alignment :toggle-snap-ruler-guide]]
     (t/testing (str id)
       (t/is (and (contains? shortcuts/shortcuts id)
                  (= [] (:command (get shortcuts/shortcuts id)))
