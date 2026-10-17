@@ -6,7 +6,7 @@
 # ${ADAPTER_PORT:-8798}) and gpt-6.1-sol xhigh reviewers on the default Codex lane (runtime-deepseek.json).
 # ZS_RUNTIME=deepseek-fast: same worker, gpt-6.1-sol high reviewers; for frontend/UI cards, not backend/data model.
 # After a run: devtools/zeroshot/scope-check.sh /tmp/zs-designgate/NAME TASK_FILE before committing anything.
-# Parallel runs: one NAME per run (own worktree/branch); a second start of an active NAME is refused (lock dir
+# Parallel runs (at most ZS_MAX_RUNS, see cleanup.sh): one NAME per run (own worktree/branch); a second start of an active NAME is refused (lock dir
 # /tmp/zs-designgate/NAME.lock). Each run gets its own TMPDIR (NAME.tmp). The native run can outlive this CLI
 # (Ctrl-C/detach), so both stay until the orchestrator's cleanup after a terminal status (AGENTS.md step 3).
 set -eu
@@ -15,9 +15,15 @@ repo=$(git rev-parse --show-toplevel)
 here=$repo/devtools/zeroshot
 work=/tmp/zs-designgate/$name
 mkdir -p /tmp/zs-designgate
-# Disk guard: reviewer scratch copies filled the disk once (STATE Open). Threshold ZS_MIN_FREE_GB (default 30).
+# Admission (critic/12): release finished runs, then cap parallel runs at ZS_MAX_RUNS (default 4).
+# Start runs one after another; two simultaneous starts can both pass the count.
+active=$(sh "$here/cleanup.sh")
+[ "$active" -lt "${ZS_MAX_RUNS:-4}" ] || { echo "$active runs active (ZS_MAX_RUNS=${ZS_MAX_RUNS:-4}); wait for one to finish" >&2; exit 2; }
+# Disk guard: reviewer scratch copies filled the disk once (STATE Open). Needs ZS_MIN_FREE_GB (default 30)
+# plus a ZS_GB_PER_RUN (default 10) reserve for every active run.
 free=$(df -Pk /tmp | awk 'NR==2 {print int($4/1048576)}')
-[ "$free" -ge "${ZS_MIN_FREE_GB:-30}" ] || { echo "only ${free} GB free on /tmp; clean /tmp/zs-agent-* of finished runs" >&2; exit 2; }
+need=$(( ${ZS_MIN_FREE_GB:-30} + active * ${ZS_GB_PER_RUN:-10} ))
+[ "$free" -ge "$need" ] || { echo "only ${free} GB free on /tmp, need ${need}; clean /tmp/zs-agent-* of finished runs" >&2; exit 2; }
 stale=$(find -H /tmp -maxdepth 1 -name 'zs-agent-*' -mmin +1440 2>/dev/null | wc -l | tr -d ' ')
 [ "$stale" = 0 ] || echo "note: $stale scratch dirs /tmp/zs-agent-* older than 24 h (check they belong to finished runs)" >&2
 mkdir "$work.lock" 2>/dev/null || { echo "run $name is already active ($work.lock)" >&2; exit 2; }
@@ -28,7 +34,7 @@ cp "$here/agent-settings.json" "$work/.claude/settings.local.json"
 python3 -c 'import json,sys; print(json.dumps({"task": open(sys.argv[1]).read().strip() + "\n\n" + open(sys.argv[2]).read()}))' \
   "$task" "$here/preamble.md" > "$work.input.json"
 runtime=$here/runtime.json
-if [ "${ZS_RUNTIME:-}" = deepseek ] || [ "${ZS_RUNTIME:-}" = deepseek-fast ] || [ "${ZS_RUNTIME:-}" = sol1 ]; then
+if [ "${ZS_RUNTIME:-}" = deepseek ] || [ "${ZS_RUNTIME:-}" = deepseek-fast ] || [ "${ZS_RUNTIME:-}" = sol1 ] || [ "${ZS_RUNTIME:-}" = sol1m ]; then
   runtime=$here/runtime-$ZS_RUNTIME.json
   port=${ADAPTER_PORT:-8798}
   python3 -c 'import sys,urllib.request; sys.exit(urllib.request.urlopen(sys.argv[1], timeout=2).read() != b"{\"adapter\":\"designgate-yandex\"}")' \
@@ -37,8 +43,9 @@ if [ "${ZS_RUNTIME:-}" = deepseek ] || [ "${ZS_RUNTIME:-}" = deepseek-fast ] || 
   export GATEWAY_BASE_URL=http://127.0.0.1:$port/v1 GATEWAY_API_KEY=dummy
 fi
 cd "$work"
-# ZS_RUNTIME=sol1: one reviewer (acceptance + code) and at most 3 change iterations (critic/12).
+# ZS_RUNTIME=sol1: one reviewer (acceptance + code) and at most 3 change iterations (critic/12);
+# sol1m: same graph with the reviewer at medium effort (calibration against sol1).
 graph=(--template software-change)
-[ "${ZS_RUNTIME:-}" = sol1 ] && graph=(--graph "$here/graph-one-reviewer.json")
+case "${ZS_RUNTIME:-}" in sol1|sol1m) graph=(--graph "$here/graph-one-reviewer.json") ;; esac
 exec zeroshot run --title "figmapot $name" "${graph[@]}" --input "$work.input.json" \
   --runtime-config "$runtime" --submission-key "designgate-$name-$(git rev-parse --short HEAD)${ZS_ATTEMPT:+-$ZS_ATTEMPT}" "$@"
