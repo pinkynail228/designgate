@@ -126,32 +126,17 @@
        :line-x2 (+ (:x vbox) rulers-pos (* 2 zoom-inverse) rulers-size)
        :line-y2 val})))
 
-(defn rulers-outside-path
-  "Path data for the viewport outside"
-  [x1 y1 x2 y2]
+(defn rulers-background-path
+  "Path data for the ruler bars, an L shape on the top and left edges of the
+   viewport."
+  [x1 y1 x2 y2 bw]
   (dm/str
    "M" x1 "," y1
    "L" x2 "," y1
-   "L" x2 "," y2
+   "L" x2 "," (+ y1 bw)
+   "L" (+ x1 bw) "," (+ y1 bw)
+   "L" (+ x1 bw) "," y2
    "L" x1 "," y2
-   "Z"))
-
-(defn rulers-inside-path
-  "Calculates the path for the inside of the viewport frame"
-  [x1 y1 x2 y2 br bw]
-  (dm/str
-   "M" (+ x1 bw) "," (+ y1 bw br)
-   "Q" (+ x1 bw) "," (+ y1 bw) "," (+ x1 bw br) "," (+ y1 bw)
-
-   "L" (- x2 br) "," (+ y1 bw)
-   "Q" x2 "," (+ y1 bw) "," x2 "," (+ y1 bw br)
-
-   "L" x2 "," (- y2 br)
-   "Q" x2 "," y2 "," (- x2 br) "," y2
-
-   "L" (+ x1 bw br) "," y2
-   "Q" (+ x1 bw) "," y2 "," (+ x1 bw) "," (- y2 br)
-
    "Z"))
 
 (mf/defc rulers-text*
@@ -204,9 +189,7 @@
   (let [{:keys [width height] x1 :x y1 :y} vbox
         x2 (+ x1 width)
         y2 (+ y1 height)
-        bw (if show-rulers (* ruler-area-size zoom-inverse) 0)
-        br (/ canvas-border-radius zoom)
-        bs (* 4 zoom-inverse)]
+        bw (* ruler-area-size zoom-inverse)]
     [:*
      [:g.viewport-frame-background
       ;; Fix for a Firefox bug that shows some strange artifacts when creating shape
@@ -215,16 +198,11 @@
               :stroke-width 0.1
               :stroke "rgba(0,0,0,0)"}]
 
-      ;; This goes behind because if it goes in front the background bleeds through
-      [:path {:d (rulers-inside-path x1 y1 x2 y2 br bw)
-              :fill "none"
-              :stroke-width bs
-              :stroke "var(--panel-border-color)"}]
-
-      [:path {:d (dm/str (rulers-outside-path x1 y1 x2 y2)
-                         (rulers-inside-path x1 y1 x2 y2 br bw))
-              :fill-rule "evenodd"
-              :fill rulers-background}]]
+      ;; The canvas fills the whole viewport, so only the ruler bars paint a
+      ;; background and nothing at all is painted when the rulers are hidden.
+      (when show-rulers
+        [:path {:d (rulers-background-path x1 y1 x2 y2 bw)
+                :fill rulers-background}])]
 
      (when show-rulers
        (let [step (calculate-step-size zoom)]

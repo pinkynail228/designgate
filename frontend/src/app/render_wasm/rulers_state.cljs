@@ -33,8 +33,9 @@
         selecting-first-level-frame? (and (= (count selected-shapes) 1)
                                           (cfh/root-frame? first-shape))]
     {:show-rulers? show-rulers?
-     ;; The rounded canvas frame is shown unless the whole UI is hidden.
-     :frame-visible? (not hide-ui?)
+     ;; FigmaPot: the canvas goes edge to edge; the wasm renderer only
+     ;; paints its ruler frame while the rulers are shown.
+     :frame-visible? (and show-rulers? (not hide-ui?))
      :offset-x (if selecting-first-level-frame?
                  (:x first-shape)
                  (:x selected-frame))

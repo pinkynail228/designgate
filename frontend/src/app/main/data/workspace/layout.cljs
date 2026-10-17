@@ -64,7 +64,6 @@
   #{:sitemap
     :layers
     :element-options
-    :rulers
     :display-guides
     :display-comments
     :snap-guides
