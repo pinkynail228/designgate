@@ -42,9 +42,14 @@ if [ "${ZS_RUNTIME:-}" = deepseek ] || [ "${ZS_RUNTIME:-}" = deepseek-fast ] || 
     || { echo "Yandex adapter is not answering on 127.0.0.1:$port; start devtools/zeroshot/adapter.sh" >&2; exit 2; }
   export GATEWAY_BASE_URL=http://127.0.0.1:$port/v1 GATEWAY_API_KEY=dummy
 fi
-# Isolated Codex home (critic/16): runs must not inherit personal MCP servers, hooks or AGENTS.md.
-# ~/.codex-zs holds config.toml (run MCP servers only) and a symlink to ~/.codex/auth.json.
-[ -d "${ZS_CODEX_HOME:-$HOME/.codex-zs}" ] && export CODEX_HOME="${ZS_CODEX_HOME:-$HOME/.codex-zs}"
+# Isolated Codex home and agent sandbox (critic/16), regenerated each run so new private dirs stay denied.
+export CODEX_HOME="${ZS_CODEX_HOME:-$HOME/.codex-zs}"
+sh "$here/codex-home.sh" "$CODEX_HOME"
+# Serena: Clojure only, read-only (gitignored local override); reuse the lane's symbol cache if present.
+# Serena migrates the tracked .serena/project.yml on load; keep that rewrite out of the run's diff.
+git -C "$work" update-index --skip-worktree .serena/project.yml
+printf '%s\n' '# Zeroshot run: Clojure only, no edits through Serena.' 'languages:' '- clojure' 'read_only: true' > "$work/.serena/project.local.yml"
+[ -d "$work/.serena/cache" ] || [ ! -d "$repo/.serena/cache" ] || cp -R "$repo/.serena/cache" "$work/.serena/cache"
 cd "$work"
 # ZS_RUNTIME=sol1: one reviewer (acceptance + code) and at most 3 change iterations (critic/12);
 # sol1m: same graph with the reviewer at medium effort (calibration against sol1).
