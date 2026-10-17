@@ -440,7 +440,7 @@
              (tr "workspace.libraries.no-matches-for" search-term))]))]]))
 
 (defn- extract-assets
-  [file-data library summary?]
+  [file-data library summary? applied]
   (let [exceeded (volatile! {:components false
                              :colors false
                              :typographies false})
@@ -452,7 +452,9 @@
                        (take 5 items))
                      items))
 
-        assets (dwl/assets-need-sync library file-data)
+        assets (dwl/remove-applied-assets
+                (dwl/assets-need-sync library file-data)
+                applied)
 
         component-ids  (into #{} (->> assets
                                       (filter #(= (:asset-type %) :component))
@@ -481,12 +483,32 @@
                         :colors colors
                         :typographies typographies}]))
 
+(mf/defc asset-update-button*
+  {::mf/private true}
+  [{:keys [library-id asset-type asset-id disabled on-update]}]
+  (let [on-click (mf/use-fn
+                  (mf/deps library-id asset-type asset-id on-update)
+                  (fn [_]
+                    (on-update library-id asset-type asset-id)))]
+    [:> button* {:class (stl/css :asset-update)
+                 :disabled disabled
+                 :variant "secondary"
+                 :on-click on-click}
+     (tr "workspace.libraries.update")]))
+
 (mf/defc updates-tab*
   {::mf/private true}
   [{:keys [file-id libraries]}]
   ;; FIXME: naming
   (let [summary?*  (mf/use-state true)
         summary?   (deref summary?*)
+
+        ;; Assets updated one by one in this session, as a set of
+        ;; [asset-type asset-id] pairs. They are hidden from the list until
+        ;; the dialog is opened again.
+        applied*   (mf/use-state #{})
+        applied    (deref applied*)
+
         updating?  (mf/deref refs/updating-library)
 
         ;; NOTE: we don't want to react on file changes, we just want
@@ -498,9 +520,9 @@
          (fn []
            (reset! summary?* false)))
 
-        libs-assets (mf/with-memo [file-data libraries summary?*]
+        libs-assets (mf/with-memo [file-data libraries summary? applied]
                       (->> (vals libraries)
-                           (map #(extract-assets file-data % summary?))
+                           (map #(extract-assets file-data % summary? applied))
                            (filter (fn [[_ _ {:keys [components colors typographies]}]]
                                      (or (seq components)
                                          (seq colors)
@@ -516,7 +538,18 @@
                               (when library-id
                                 (st/emit!
                                  (dwl/set-updating-library true)
-                                 (dwl/sync-file file-id library-id)))))))]
+                                 (dwl/sync-file file-id library-id)))))))
+
+        update-asset   (mf/use-fn
+                        (mf/deps file-id updating?)
+                        (fn [library-id asset-type asset-id]
+                          (when-not updating?
+                            (swap! applied* conj [asset-type asset-id])
+                            (st/emit!
+                             (dwl/set-updating-library true)
+                             (dwl/sync-file file-id library-id
+                                            (dwl/sync-file-asset-type asset-type)
+                                            asset-id)))))]
 
     [:div {:class (stl/css :updates-content)}
      [:div {:class (stl/css :update-section)}
@@ -562,7 +595,12 @@
                        [:div {:class (stl/css :name-block)}
                         [:span {:class (stl/css :item-name)
                                 :title (:name component)}
-                         (:name component)]]])])
+                         (:name component)]]
+                       [:& asset-update-button* {:library-id id
+                                                 :asset-type :component
+                                                 :asset-id (:id component)
+                                                 :disabled updating?
+                                                 :on-update update-asset}]])])
                  (when (:components exceeded)
                    [:div {:class (stl/css :libraries-updates-item)
                           :key (uuid/next)}
@@ -588,7 +626,12 @@
                                 :title (:name color)}
                          (:name color)]
                         (when-not (= (:name color) default-name)
-                          [:span.color-value (:color color)])]]]))
+                          [:span.color-value (:color color)])]
+                       [:& asset-update-button* {:library-id id
+                                                 :asset-type :color
+                                                 :asset-id (:id color)
+                                                 :disabled updating?
+                                                 :on-update update-asset}]]]))
                  (when (:colors exceeded)
                    [:div {:class (stl/css :libraries-updates-item)
                           :key (uuid/next)}
@@ -608,7 +651,12 @@
                      [:div {:class (stl/css :name-block)}
                       [:span {:class (stl/css :item-name)
                               :title (:name typography)}
-                       (:name typography)]]]])
+                       (:name typography)]]
+                     [:& asset-update-button* {:library-id id
+                                               :asset-type :typography
+                                               :asset-id (:id typography)
+                                               :disabled updating?
+                                               :on-update update-asset}]]])
                  (when (:typographies exceeded)
                    [:div {:class (stl/css :libraries-updates-item)
                           :key (uuid/next)}
