@@ -176,10 +176,20 @@
   @include t.use-typography("body-large");
 
   display: grid;
-  grid-template-columns: auto 1fr;
+  grid-template-columns: auto 1fr auto;
   align-items: start;
   gap: var(--sp-s);
   color: var(--library-content-foreground-color);
+}
+
+// Update button of one single asset inside a library
+.asset-update {
+  @include t.use-typography("body-small");
+
+  align-self: center;
+  justify-self: end;
+  height: $sz-24;
+  padding: var(--sp-xxs) var(--sp-s);
 }
 
 .component-svg {

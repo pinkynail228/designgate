@@ -1130,6 +1130,15 @@
 (def valid-asset-types
   #{:colors :components :typographies})
 
+(defn mark-library-synced?
+  "Whether a sync of `file-id` from `library-id` marks the whole library as
+  synced for this file. A sync of a single asset (when `asset-id` is set) only
+  copies that asset, so it must not mark the library as synced; doing it would
+  hide the assets that are still pending from the updates list."
+  [file-id library-id asset-id]
+  (and (not= file-id library-id)
+       (nil? asset-id)))
+
 (defn- sync-file-pending-ids
   [file-id changes]
   ;; Track the file and every changed page object.
@@ -1198,8 +1207,7 @@
    (ptk/reify ::sync-file
      ptk/UpdateEvent
      (update [_ state]
-       (if (and (not= library-id (:current-file-id state))
-                (nil? asset-id))
+       (if (mark-library-synced? (:current-file-id state) library-id asset-id)
          (d/update-in-when state [:files library-id] assoc :synced-at (ct/now))
          state))
 
@@ -1248,7 +1256,7 @@
             ;; Keep the sync pending until its layout work starts.
             (wrf/with-pending :sync-file pending-ids frontend-sync)
 
-            (when (not= file-id library-id)
+            (when (mark-library-synced? file-id library-id asset-id)
               ;; When we have just updated the library file, give some time for the
               ;; update to finish, before marking this file as synced.
               ;; TODO: look for a more precise way of syncing this.
@@ -1292,6 +1300,25 @@
      (let [sync-date (max (:synced-at library) (or ignore-until 0))]
        (when (> (:modified-at library) sync-date)
          (ctf/used-assets-changed-since file-data library sync-date))))))
+
+(def sync-asset-types
+  "Translation of an asset type as returned by `assets-need-sync`
+  (:component, :color, :typography) to the type expected by `sync-file`."
+  {:component :components
+   :color :colors
+   :typography :typographies})
+
+(defn sync-file-asset-type
+  [asset-type]
+  (get sync-asset-types asset-type))
+
+(defn remove-applied-assets
+  "Remove from `assets` (as returned by `assets-need-sync`) the ones already
+  synced one by one, identified by an [asset-type asset-id] pair."
+  [assets applied]
+  (remove (fn [{:keys [asset-type asset-id]}]
+            (contains? applied [asset-type asset-id]))
+          assets))
 
 (defn notify-sync-file
   "Notify the user that there are updates in the libraries used by the
