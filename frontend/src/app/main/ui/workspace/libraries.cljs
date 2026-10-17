@@ -498,15 +498,11 @@
 
 (mf/defc updates-tab*
   {::mf/private true}
-  [{:keys [file-id libraries]}]
+  [{:keys [file-id libraries applied*]}]
   ;; FIXME: naming
   (let [summary?*  (mf/use-state true)
         summary?   (deref summary?*)
 
-        ;; Assets updated one by one in this session, as a set of
-        ;; [asset-type asset-id] pairs. They are hidden from the list until
-        ;; the dialog is opened again.
-        applied*   (mf/use-state #{})
         applied    (deref applied*)
 
         updating?  (mf/deref refs/updating-library)
@@ -692,6 +688,12 @@
         shared-libraries
         (mf/deref refs/shared-files)
 
+        ;; Assets updated one by one, as a set of [asset-type asset-id]
+        ;; pairs. Kept here, not in the updates tab, so they stay hidden
+        ;; when switching tabs, until the dialog is opened again.
+        applied*
+        (mf/use-state #{})
+
         close-dialog-outside
         (mf/use-fn
          (fn [event]
@@ -747,7 +749,8 @@
          "updates"
          [:> updates-tab*
           {:file-id file-id
-           :libraries linked-libraries}])]]]))
+           :libraries linked-libraries
+           :applied* applied*}])]]]))
 
 (mf/defc v2-info-dialog
   {::mf/register modal/components
