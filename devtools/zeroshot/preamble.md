@@ -6,7 +6,7 @@ Test environment for every agent in this run (worker, reviewers):
 
 Repository invariants (see AGENTS.md, DesignGate overrides first):
 - Touch only the paths the task allows. A file outside them, including a new untracked file, is a scope failure.
-- User-visible text says DesignGate, never Penpot (the `.penpot` file extension stays). Translations keep every placeholder of the `en.po` msgid (`%s`, `%d`, `{{...}}`) and Russian plural forms.
+- User-visible branding stays Penpot; FigmaPot is the fork name only and never appears in the UI. Translations keep every placeholder of the `en.po` msgid (`%s`, `%d`, `{{...}}`) and Russian plural forms.
 - Keep the diff small and in upstream style: it must merge with future Penpot releases.
 
 Roles in this repo (on top of the graph's built-in instructions):

@@ -1,4 +1,4 @@
-name: "CI: DesignGate Backend"
+name: "CI: FigmaPot Backend"
 
 # Fork-owned backend CI. Upstream's tests-backend.yml needs the self-hosted
 # penpot-extended-runner; this runs the same fmt/lint/tests on a hosted runner
@@ -12,12 +12,13 @@ defaults:
 on:
   push:
     branches:
+      - figmapot
       - designgate
       - 'dg/**'
     paths:
       - 'backend/**'
       - 'common/**'
-      - '.github/workflows/designgate-backend.yml'
+      - '.github/workflows/figmapot-backend.yml'
 
   workflow_dispatch:
 
@@ -39,7 +40,7 @@ jobs:
 
     # Same services as tests-backend.yml, published on host ports because the
     # devenv runs with `docker run --network host` (see frontend-test in
-    # designgate-ci.yml for why there is no job-level container).
+    # figmapot-ci.yml for why there is no job-level container).
     services:
       postgres:
         image: postgres:17
@@ -145,7 +146,7 @@ jobs:
           build-args: |
             BUNDLE_PATH=./bundle-backend/
           push: true
-          tags: ghcr.io/${{ github.repository_owner }}/designgate-backend:${{ github.sha }}
+          tags: ghcr.io/${{ github.repository_owner }}/figmapot-backend:${{ github.sha }}
 
       - name: Write job summary
         run: |
@@ -153,6 +154,6 @@ jobs:
             echo "### Backend image"
             echo ""
             echo "- Commit: \`${{ github.sha }}\`"
-            echo "- Image: \`ghcr.io/${{ github.repository_owner }}/designgate-backend:${{ github.sha }}\`"
+            echo "- Image: \`ghcr.io/${{ github.repository_owner }}/figmapot-backend:${{ github.sha }}\`"
             echo "- Digest: \`${{ steps.image.outputs.digest }}\`"
           } >> "$GITHUB_STEP_SUMMARY"
