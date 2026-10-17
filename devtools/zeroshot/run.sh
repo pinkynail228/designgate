@@ -42,6 +42,9 @@ if [ "${ZS_RUNTIME:-}" = deepseek ] || [ "${ZS_RUNTIME:-}" = deepseek-fast ] || 
     || { echo "Yandex adapter is not answering on 127.0.0.1:$port; start devtools/zeroshot/adapter.sh" >&2; exit 2; }
   export GATEWAY_BASE_URL=http://127.0.0.1:$port/v1 GATEWAY_API_KEY=dummy
 fi
+# Isolated Codex home (critic/16): runs must not inherit personal MCP servers, hooks or AGENTS.md.
+# ~/.codex-zs holds config.toml (run MCP servers only) and a symlink to ~/.codex/auth.json.
+[ -d "${ZS_CODEX_HOME:-$HOME/.codex-zs}" ] && export CODEX_HOME="${ZS_CODEX_HOME:-$HOME/.codex-zs}"
 cd "$work"
 # ZS_RUNTIME=sol1: one reviewer (acceptance + code) and at most 3 change iterations (critic/12);
 # sol1m: same graph with the reviewer at medium effort (calibration against sol1).
