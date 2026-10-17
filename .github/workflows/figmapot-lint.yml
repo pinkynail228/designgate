@@ -1,8 +1,9 @@
 name: "CI: FigmaPot Lint"
 
 # Fast gate for card branches (critic/12): cljfmt, clj-kondo and stylelint
-# only, a few minutes instead of the full build. The full frontend build,
-# tests and image (figmapot-ci.yml) run on `figmapot` and `dg/train-**`.
+# (~3 min) and, in a parallel job, the frontend unit tests (~8 min, critic/13)
+# without the bundle and image. The full build, tests and image
+# (figmapot-ci.yml) run on `figmapot` and `dg/train-**`.
 
 defaults:
   run:
@@ -44,3 +45,30 @@ jobs:
             --mount source="$GITHUB_WORKSPACE",type=bind,target=/home/penpot/penpot \
             -w /home/penpot/penpot/frontend \
             "$DEVENV_IMAGE" bash -c 'pnpm install && pnpm run lint:clj && pnpm run check-fmt:clj && pnpm run lint:scss'
+
+  frontend-test:
+    name: "Frontend Tests"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+
+    steps:
+      # Same disk cleanup as figmapot-ci.yml: the wasm build and shadow-cljs
+      # compile do not fit next to the preinstalled toolchains.
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+                      /opt/hostedtoolcache/CodeQL /usr/local/share/boost
+          sudo docker image prune --all --force || true
+
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Pull devenv image
+        run: docker pull "$DEVENV_IMAGE"
+
+      - name: Tests
+        run: |
+          docker run --rm \
+            --mount source="$GITHUB_WORKSPACE",type=bind,target=/home/penpot/penpot \
+            -w /home/penpot/penpot/frontend \
+            "$DEVENV_IMAGE" bash -c 'pnpm install && pnpm run test'
