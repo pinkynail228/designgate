@@ -2,8 +2,9 @@
 # Run a local Zeroshot software-change review cycle on DesignGate in an isolated worktree.
 # Usage: [ZS_ATTEMPT=2] devtools/zeroshot/run.sh NAME TASK_FILE [--validate-only]  (ZS_ATTEMPT: rerun after a failed run on the same worktree HEAD)
 # TASK_FILE is plain text; the shared test-environment preamble is appended.
-# ZS_RUNTIME=deepseek: DeepSeek worker through the local Yandex adapter (devtools/zeroshot/adapter.sh, port
-# ${ADAPTER_PORT:-8798}) and gpt-6.1-sol xhigh reviewers on the default Codex lane (runtime-deepseek.json).
+# ZS_RUNTIME=deepseek: DeepSeek worker through the shared Yandex adapter (launchd instance
+# local.yandex-adapter.designgate on ${ADAPTER_PORT:-8798}; code and rules in ~/.local/share/yandex-adapter)
+# and gpt-6.1-sol xhigh reviewers on the default Codex lane (runtime-deepseek.json).
 # ZS_RUNTIME=deepseek-fast: same worker, gpt-6.1-sol high reviewers; for frontend/UI cards, not backend/data model.
 # After a run: devtools/zeroshot/scope-check.sh /tmp/zs-designgate/NAME TASK_FILE before committing anything.
 # Parallel runs (at most ZS_MAX_RUNS, see cleanup.sh): one NAME per run (own worktree/branch); a second start of an active NAME is refused (lock dir
@@ -39,7 +40,7 @@ if [ "${ZS_RUNTIME:-}" = deepseek ] || [ "${ZS_RUNTIME:-}" = deepseek-fast ] || 
   port=${ADAPTER_PORT:-8798}
   python3 -c 'import sys,urllib.request; sys.exit(urllib.request.urlopen(sys.argv[1], timeout=2).read() != b"{\"adapter\":\"designgate-yandex\"}")' \
     "http://127.0.0.1:$port/designgate-adapter/health" 2>/dev/null \
-    || { echo "Yandex adapter is not answering on 127.0.0.1:$port; start devtools/zeroshot/adapter.sh" >&2; exit 2; }
+    || { echo "Yandex adapter is not answering on 127.0.0.1:$port; run ~/.local/share/yandex-adapter/install.sh designgate $port" >&2; exit 2; }
   export GATEWAY_BASE_URL=http://127.0.0.1:$port/v1 GATEWAY_API_KEY=dummy
 fi
 # Isolated Codex home and agent sandbox (critic/16), regenerated each run so new private dirs stay denied.
