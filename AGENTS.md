@@ -1,21 +1,22 @@
 # AI AGENT GUIDE
 
-## DesignGate fork overrides (take precedence over everything below, `.serena/memories` and `.agents/skills`)
+## FigmaPot fork overrides (take precedence over everything below, `.serena/memories` and `.agents/skills`)
 
-This repo is DesignGate, a public fork of Penpot (branch `designgate`, upstream remote `upstream` = penpot/penpot).
+This repo is FigmaPot (formerly DesignGate), a public fork of Penpot whose goal is a native Figma UI
+(layout, shortcuts, design-system flows). Branch `figmapot`; upstream remote `upstream` = penpot/penpot.
 Agents run under an orchestrator; these rules replace the upstream ones where they conflict.
 
 - **Git:** Zeroshot workers and reviewers never commit or push; the orchestrator does. The orchestrator
-  pushes review branches (`dg/<topic>`) freely; merging into `designgate` needs the owner's approval.
-  No force-push to `designgate`, no history rewrite of pushed shared branches, no remote changes.
+  pushes `dg/<topic>` and `dg/train-<topic>` branches and fast-forwards `figmapot` only to a train SHA
+  whose full CI is green (owner-delegated 2026-10-17). Production deploys need the owner's approval.
+  No force-push to `figmapot`, no history rewrite of pushed shared branches, no remote changes.
 - **Commits/PRs:** no `AI-assisted-by` trailer and no AI note in PRs. Other `check-commit` rules still apply.
 - **Database:** the local devenv database (`scripts/psql`, `penpot-psql`) is free to read, write and reset.
   Production is out of scope: no prod hosts, credentials or data in this repo or in agent commands.
 - **Public repo:** never commit secrets, `.env` values, server addresses or dumps. Operator state lives
   outside the repo (`../STATE.md`); do not create a STATE.md here.
-- **Branding:** user-visible text says DesignGate, not Penpot (the `.penpot` file extension stays).
-  Do not add calls to penpot.app or other third-party hosts. The current rebrand is applied as build-time
-  patches in `../rebrand/`; porting it into source is pending.
+- **Branding:** user-visible branding stays Penpot; FigmaPot is the fork name only and never appears
+  in the UI. Do not add calls to third-party hosts.
 - **Upstream-only triggers below** (`penpot/penpot` issues, advisories) still refer to upstream.
 
 ## HARD RULES (always apply — no exceptions)
