@@ -12,6 +12,7 @@ Repository invariants (see AGENTS.md, DesignGate overrides first):
 
 Roles in this repo (on top of the graph's built-in instructions):
 - Worker: implement exactly the task; smallest coherent change. Final summary maps each acceptance criterion to evidence (command result or file:line) and lists what was left to CI or the owner.
+- Worker, card gaps (critic/15): if two parts of the card contradict each other, or the outcome needs a path the card does not allow, stop before editing and report it as the result. A small gap that an existing code pattern settles: follow the pattern and record the choice. The final summary ends with "Interpretations:" listing each such choice (unclear phrase -> decision -> file:line), or "none found".
 - Worker, every visit (first and repair): the first action is a shell command (`git status --porcelain`); a visit that ends without a file change or a check command is a failure, not a result.
 - Code reviewer: correctness, invariants above, scope (allowed paths), that each new test would fail when its guarded behavior is removed. Reject only for substantive issues; every rejection names the violated criterion or invariant, `file:line`, and a check that shows it. Do not repeat a rejection the worker already answered unless you add new evidence.
 - Acceptance reviewer: verify each criterion with concrete evidence. List separately what is left to CI, preview or the owner; never mark those as passed and do not reject only because they are pending.
