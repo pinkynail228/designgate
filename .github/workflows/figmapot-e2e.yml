@@ -59,9 +59,12 @@ jobs:
               pnpm install
               ./scripts/build
               pnpm exec playwright install chromium
-              pnpm exec playwright test --project default --workers=2 \
-                --reporter=list,json > /tmp/pw-list.txt 2>&1 || rc=$?
-              cp /tmp/pw-list.txt test-results-list.txt
+              # Baseline triage: no retries and a shorter per-test timeout, so failing
+              # specs cannot eat the job budget; the list is also streamed to the log.
+              pnpm exec playwright test --project default --workers=4 \
+                --retries=0 --timeout=30000 --reporter=list 2>&1 \
+                | tee test-results-list.txt
+              rc=${PIPESTATUS[0]}
               exit ${rc:-0}'
 
       - name: Summary
