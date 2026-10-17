@@ -120,7 +120,7 @@ test("Selection size badge uses component color for component selection", async 
 
   const badge = page.locator(".selection-size-badge");
   await expect(badge).toBeVisible();
-  await expect(badge.locator("rect")).toHaveCSS("fill", "rgb(187, 151, 216)");
+  await expect(badge.locator("rect")).toHaveCSS("fill", "rgb(19, 69, 170)");
   await expect(badge.locator("text")).toHaveCSS("fill", "rgb(255, 255, 255)");
 });
 

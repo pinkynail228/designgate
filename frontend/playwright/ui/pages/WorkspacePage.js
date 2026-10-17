@@ -171,10 +171,10 @@ export class WorkspacePage extends BaseWebSocketPage {
     );
     this.toolbarOptions = page.getByTestId("toolbar-options");
     this.rectShapeButton = page.getByRole("button", { name: "Rectangle (R)" });
-    this.ellipseShapeButton = page.getByRole("button", { name: "Ellipse (E)" });
+    this.ellipseShapeButton = page.getByRole("button", { name: "Ellipse (O)" });
     this.textShapeButton = page.getByRole("button", { name: "Text (T)" });
     this.moveButton = page.getByRole("button", { name: "Move (V)" });
-    this.boardButton = page.getByRole("button", { name: "Board (B)" });
+    this.boardButton = page.getByRole("button", { name: "Board (F)" });
     this.pathButton = page.getByRole("button", { name: "Path (P)" });
     this.toggleToolbarButton = page.getByRole("button", {
       name: "Toggle toolbar",

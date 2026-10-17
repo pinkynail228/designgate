@@ -41,9 +41,9 @@ const setupVariantsFileWithVariant = async (workspacePage) => {
   await setupVariantsFile(workspacePage);
 
   await workspacePage.clickLeafLayer("Rectangle");
-  await workspacePage.page.keyboard.press("ControlOrMeta+k");
+  await workspacePage.page.keyboard.press("ControlOrMeta+Alt+k");
   await workspacePage.page.waitForTimeout(500);
-  await workspacePage.page.keyboard.press("ControlOrMeta+k");
+  await workspacePage.page.keyboard.press("ControlOrMeta+Alt+k");
   await workspacePage.page.waitForTimeout(500);
 
   // We wait until layer-row starts looking like it an component
@@ -357,11 +357,11 @@ test("User cut paste a component inside a variant", async ({ page }) => {
   //Create a component
   await workspacePage.selectToolFromFlyout(workspacePage, {
     triggerToolName: "Rectangle (R)",
-    targetToolName: "Ellipse (E)",
+    targetToolName: "Ellipse (O)",
   });
   await workspacePage.clickWithDragViewportAt(500, 500, 20, 20);
   await workspacePage.clickLeafLayer("Ellipse");
-  await workspacePage.page.keyboard.press("ControlOrMeta+k");
+  await workspacePage.page.keyboard.press("ControlOrMeta+Alt+k");
 
   //Cut the component
   await workspacePage.cut("keyboard");
@@ -391,11 +391,11 @@ test("User cut paste a component with path inside a variant", async ({
   // Create a component
   await workspacePage.selectToolFromFlyout(workspacePage, {
     triggerToolName: "Rectangle (R)",
-    targetToolName: "Ellipse (E)",
+    targetToolName: "Ellipse (O)",
   });
   await workspacePage.clickWithDragViewportAt(500, 500, 20, 20);
   await workspacePage.clickLeafLayer("Ellipse");
-  await workspacePage.page.keyboard.press("ControlOrMeta+k");
+  await workspacePage.page.keyboard.press("ControlOrMeta+Alt+k");
   await workspacePage.page.waitForTimeout(3000);
 
   // Rename the component
@@ -435,11 +435,11 @@ test("User drag and drop a component with path inside a variant", async ({
   //Create a component
   await workspacePage.selectToolFromFlyout(workspacePage, {
     triggerToolName: "Rectangle (R)",
-    targetToolName: "Ellipse (E)",
+    targetToolName: "Ellipse (O)",
   });
   await workspacePage.clickWithDragViewportAt(500, 500, 20, 20);
   await workspacePage.clickLeafLayer("Ellipse");
-  await workspacePage.page.keyboard.press("ControlOrMeta+k");
+  await workspacePage.page.keyboard.press("ControlOrMeta+Alt+k");
   await workspacePage.page.waitForTimeout(3000);
 
   //Rename the component
@@ -470,12 +470,12 @@ test("User cut paste a variant into another container", async ({ page }) => {
   // Create anothe variant
   await workspacePage.selectToolFromFlyout(workspacePage, {
     triggerToolName: "Rectangle (R)",
-    targetToolName: "Ellipse (E)",
+    targetToolName: "Ellipse (O)",
   });
   await workspacePage.clickWithDragViewportAt(500, 500, 20, 20);
   await workspacePage.clickLeafLayer("Ellipse");
-  await workspacePage.page.keyboard.press("ControlOrMeta+k");
-  await workspacePage.page.keyboard.press("ControlOrMeta+k");
+  await workspacePage.page.keyboard.press("ControlOrMeta+Alt+k");
+  await workspacePage.page.keyboard.press("ControlOrMeta+Alt+k");
 
   const variantOrigin = await findVariantNoWait(workspacePage, 1);
 

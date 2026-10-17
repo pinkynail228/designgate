@@ -153,7 +153,12 @@ test("BUG 14214 - Updates tab refreshes after syncing a freshly linked library",
   const updatesPanel = workspace.librariesModal.getByRole("tabpanel", {
     name: "UPDATES",
   });
-  await updatesPanel.getByRole("button", { name: "Update" }).click();
+  // The library row now also renders a per-asset "Update" button, so scope
+  // the locator to the row and click only its library-level update button.
+  await updatesPanel
+    .locator(".main_ui_workspace_libraries__section-list-item")
+    .locator(".main_ui_workspace_libraries__item-update")
+    .click();
   await expect(
     updatesPanel.getByText("There are no Shared Libraries that need update"),
   ).toBeVisible();

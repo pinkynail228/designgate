@@ -3,15 +3,15 @@ import { RegisterPage } from "../pages/RegisterPage";
 
 // Regression test for the bug where a freshly verified account (whose
 // profile never had a theme persisted) ended up with an empty string as
-// its theme instead of falling back to the dark default: the workspace
-// switched to light mode and Settings > UI Theme showed a blank field.
+// its theme instead of falling back to the light default: Settings > UI
+// Theme showed a blank field.
 
 test.beforeEach(async ({ page }) => {
   await RegisterPage.initWithLoggedOutUser(page);
 });
 
 test.describe("Email verification", () => {
-  test("Newly verified account defaults to the dark theme", async ({
+  test("Newly verified account defaults to the light theme", async ({
     page,
   }) => {
     const registerPage = new RegisterPage(page);
@@ -22,11 +22,11 @@ test.describe("Email verification", () => {
 
     // `default` is the body class applied for dark theme, `light` for
     // light theme (see app.util.theme/set-color-scheme).
-    await expect(page.locator("body")).toHaveClass(/default/);
-    await expect(page.locator("body")).not.toHaveClass(/light/);
+    await expect(page.locator("body")).toHaveClass(/light/);
+    await expect(page.locator("body")).not.toHaveClass(/default/);
   });
 
-  test("Settings > UI Theme shows Penpot Dark (default) selected, not blank", async ({
+  test("Settings > UI Theme shows Penpot Light selected, not blank", async ({
     page,
   }) => {
     const registerPage = new RegisterPage(page);
@@ -40,6 +40,6 @@ test.describe("Email verification", () => {
     // The language select is the first combobox on the page, the theme
     // select is the second one.
     const themeSelect = page.getByRole("combobox").nth(1);
-    await expect(themeSelect).toHaveText("Penpot Dark (default)");
+    await expect(themeSelect).toHaveText("Penpot Light");
   });
 });
