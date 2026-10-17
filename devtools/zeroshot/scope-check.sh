@@ -7,6 +7,11 @@ work=$1; task=$2
 base=$(cat "$work.base" 2>/dev/null || true)
 [ -n "$base" ] || { echo "SCOPE_FAIL: no recorded base ($work.base)"; exit 1; }
 [ "$(git -C "$work" rev-parse HEAD)" = "$base" ] || { echo "SCOPE_FAIL: worktree HEAD moved off base $base (worker committed?)"; exit 1; }
+# AGENTS.override.md is git-excluded, so check its content against the hash run.sh recorded.
+if [ -f "$work.agents.sha" ]; then
+  [ "$(shasum -a 256 "$work/AGENTS.override.md" 2>/dev/null | cut -d' ' -f1)" = "$(cat "$work.agents.sha")" ] \
+    || { echo "SCOPE_FAIL: AGENTS.override.md changed or missing"; exit 1; }
+fi
 python3 -I - "$work" "$task" <<'PY'
 import re, subprocess, sys
 work, task = sys.argv[1:]
