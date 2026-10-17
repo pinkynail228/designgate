@@ -56,7 +56,7 @@ startup_timeout_sec = 120
 tool_timeout_sec = 120
 env = {{ SERENA_HOME = {q(home + "/.serena-zs")}, SERENA_USAGE_REPORTING = "false", PATH = "/opt/homebrew/opt/openjdk@21/bin:/opt/homebrew/bin:/usr/bin:/bin" }}
 """)
-    for p in ("/tmp/zs-designgate", "/private/tmp/zs-designgate", repo):
+    for p in (os.environ.get("ZS_ROOT", "/Users/Shared/figmapot/runs"), repo):
         f.write(f"\n[projects.{q(p)}]\ntrust_level = \"trusted\"\n")
 os.replace(out + ".new", out)
 EOF

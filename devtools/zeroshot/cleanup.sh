@@ -1,10 +1,12 @@
 #!/bin/sh
-# Release finished runs: remove /tmp/zs-designgate/NAME.lock and NAME.tmp when the newest Zeroshot run titled
-# "figmapot NAME" (or "designgate NAME") is finished. A lock without any listed run is released after 10 min.
+# Release finished runs: remove $ZS_ROOT/NAME.lock and NAME.tmp when the newest Zeroshot run titled
+# "figmapot NAME" (or "designgate NAME") is finished. A lock without any listed run is kept (unknown status keeps
+# data, critic/18) but stops counting as active after 10 min; it is reported on stderr for the orchestrator.
 # Worktrees stay (they hold the diff for triage); remove them with `git worktree remove` after merge.
 # Prints the number of still active runs. run.sh calls this before admission.
 set -eu
-base=/tmp/zs-designgate
+base=${ZS_ROOT:-/Users/Shared/figmapot/runs}
+mkdir -p "$base"
 zeroshot list | python3 -c '
 import json, os, shutil, sys, time
 base = sys.argv[1]
@@ -27,7 +29,11 @@ for entry in sorted(os.listdir(base)):
     if run and int(run["runId"].replace("-", "")[:12], 16) / 1000 >= locked_at - 5:
         done = run["status"]["phase"] == "finished"
     else:
-        done = time.time() - locked_at > 600
+        if time.time() - locked_at > 600:
+            print("stale lock without a listed run, kept: " + lock, file=sys.stderr)
+        else:
+            active += 1
+        continue
     if done:
         os.rmdir(lock)
         shutil.rmtree(os.path.join(base, name + ".tmp"), ignore_errors=True)

@@ -6,16 +6,19 @@
 # local.yandex-adapter.designgate on ${ADAPTER_PORT:-8798}; code and rules in ~/.local/share/yandex-adapter)
 # and gpt-6.1-sol xhigh reviewers on the default Codex lane (runtime-deepseek.json).
 # ZS_RUNTIME=deepseek-fast: same worker, gpt-6.1-sol high reviewers; for frontend/UI cards, not backend/data model.
-# After a run: devtools/zeroshot/scope-check.sh /tmp/zs-designgate/NAME TASK_FILE before committing anything.
+# Run state lives under ZS_ROOT (default /Users/Shared/figmapot/runs, survives reboots): worktree NAME, NAME.lock,
+# NAME.tmp, NAME.base. The worktree starts from ZS_BASE (default origin/figmapot), not from the lane's HEAD.
+# After a run: devtools/zeroshot/scope-check.sh $ZS_ROOT/NAME TASK_FILE before committing anything.
 # Parallel runs (at most ZS_MAX_RUNS, see cleanup.sh): one NAME per run (own worktree/branch); a second start of an active NAME is refused (lock dir
-# /tmp/zs-designgate/NAME.lock). Each run gets its own TMPDIR (NAME.tmp). The native run can outlive this CLI
+# $ZS_ROOT/NAME.lock). Each run gets its own TMPDIR (NAME.tmp). The native run can outlive this CLI
 # (Ctrl-C/detach), so both stay until the orchestrator's cleanup after a terminal status (AGENTS.md step 3).
 set -eu
 name=$1; task=$2; shift 2
 repo=$(git rev-parse --show-toplevel)
 here=$repo/devtools/zeroshot
-work=/tmp/zs-designgate/$name
-mkdir -p /tmp/zs-designgate
+root=${ZS_ROOT:-/Users/Shared/figmapot/runs}; export ZS_ROOT=$root
+work=$root/$name
+mkdir -p "$root"
 # Admission (critic/12): release finished runs, then cap parallel runs at ZS_MAX_RUNS (default 4).
 # Start runs one after another; two simultaneous starts can both pass the count.
 active=$(sh "$here/cleanup.sh")
@@ -29,7 +32,9 @@ stale=$(find -H /tmp -maxdepth 1 -name 'zs-agent-*' -mmin +1440 2>/dev/null | wc
 [ "$stale" = 0 ] || echo "note: $stale scratch dirs /tmp/zs-agent-* older than 24 h (check they belong to finished runs)" >&2
 mkdir "$work.lock" 2>/dev/null || { echo "run $name is already active ($work.lock)" >&2; exit 2; }
 mkdir -p "$work.tmp"; export TMPDIR=$work.tmp
-[ -d "$work" ] || { git -C "$repo" worktree add -q -b "zs-$name" "$work" HEAD; git -C "$work" rev-parse HEAD > "$work.base"; }
+base=${ZS_BASE:-origin/figmapot}
+[ -d "$work" ] || { git -C "$repo" worktree add -q -b "zs-$name" "$work" "$base"; git -C "$work" rev-parse HEAD > "$work.base"; }
+echo "worktree $work at $(cat "$work.base") ($base)" >&2
 mkdir -p "$work/.claude"
 cp "$here/agent-settings.json" "$work/.claude/settings.local.json"
 python3 -c 'import json,sys; print(json.dumps({"task": open(sys.argv[1]).read().strip() + "\n\n" + open(sys.argv[2]).read()}))' \
