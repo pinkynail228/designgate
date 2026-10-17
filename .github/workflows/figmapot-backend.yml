@@ -39,10 +39,11 @@ jobs:
 
     # Same services as tests-backend.yml, published on host ports because the
     # devenv runs with `docker run --network host` (see frontend-test in
-    # figmapot-ci.yml for why there is no job-level container).
+    # figmapot-ci.yml for why there is no job-level container). Versions
+    # match the prod compose (postgres 15, valkey 8.1), not upstream CI.
     services:
       postgres:
-        image: postgres:17
+        image: postgres:15
         env:
           POSTGRES_USER: penpot_test
           POSTGRES_PASSWORD: penpot_test
@@ -56,7 +57,7 @@ jobs:
           --health-retries 5
 
       redis:
-        image: valkey/valkey:9
+        image: valkey/valkey:8.1
         ports:
           - 6379:6379
 
