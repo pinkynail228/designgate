@@ -80,7 +80,7 @@ export class WasmWorkspacePage extends WorkspacePage {
   }
 
   async hideUI() {
-    await this.page.keyboard.press("\\");
+    await this.page.keyboard.press("ControlOrMeta+\\");
     await expect(this.pageName).not.toBeVisible();
   }
 

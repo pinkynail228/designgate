@@ -15,7 +15,7 @@ test("User creates a frame with the toolbar frame tool", async ({ page }) => {
   await workspacePage.setupEmptyFile();
   await workspacePage.goToWorkspace();
 
-  await workspacePage.selectToolbarTool(workspacePage, "Board (B)");
+  await workspacePage.selectToolbarTool(workspacePage, "Board (F)");
   await workspacePage.clickWithDragViewportAt(100, 100, 180, 120);
   await expectLayerNamed(workspacePage, "Board");
 });
@@ -39,7 +39,7 @@ test("User creates an ellipse from the shapes flyout", async ({ page }) => {
 
   await workspacePage.selectToolFromFlyout(workspacePage, {
     triggerToolName: "Rectangle (R)",
-    targetToolName: "Ellipse (E)",
+    targetToolName: "Ellipse (O)",
   });
   await workspacePage.clickWithDragViewportAt(520, 100, 100, 100);
   await expectLayerNamed(workspacePage, "Ellipse");
@@ -80,7 +80,7 @@ test("User creates a curve from the path flyout", async ({ page }) => {
 
   await workspacePage.selectToolFromFlyout(workspacePage, {
     triggerToolName: "Path (P)",
-    targetToolName: "Curve (Shift+C)",
+    targetToolName: "Curve (Shift+P)",
   });
   await workspacePage.clickAndMove(120, 320, 300, 380);
   await workspacePage.page.keyboard.press("Enter");

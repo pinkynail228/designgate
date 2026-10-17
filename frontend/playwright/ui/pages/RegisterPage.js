@@ -7,7 +7,7 @@ export class RegisterPage extends BasePage {
       name: "Create an account",
     });
     this.password = page.getByLabel("Password");
-    this.email = page.getByLabel("Work email");
+    this.email = page.getByLabel("Personal email");
     this.fullName = page.getByLabel("Full name");
   }
 
