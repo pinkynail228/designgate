@@ -28,6 +28,8 @@
             "Bash(wc:*)",
             "Bash(sed -n:*)",
             "Bash(diff:*)",
+            "Bash(cljfmt:*)",
+            "Bash(clj-kondo:*)",
             "Bash(rm -rf /tmp/zs-agent-*)",
             "Bash(rm -rf /private/tmp/zs-agent-*)",
             "Read(//tmp/**)",
