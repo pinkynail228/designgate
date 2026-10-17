@@ -39,6 +39,10 @@ default_permissions = "zs"
 model_verbosity = "low"
 model_reasoning_summary = "concise"
 
+# ChatGPT app connectors (codex_apps: Figma, Sites, search...): unused offline, only add tool schemas.
+[features]
+apps = false
+
 [permissions.zs]
 extends = ":workspace"
 
