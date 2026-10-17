@@ -13,7 +13,6 @@ on:
   push:
     branches:
       - figmapot
-      - designgate
       - 'dg/**'
     paths:
       - 'backend/**'

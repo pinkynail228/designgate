@@ -4,6 +4,8 @@ name: "CI: FigmaPot Frontend"
 # penpot-extended-runner and build-docker.yml pulls bundles from S3 and logs
 # in to upstream registries. This workflow runs the same frontend checks on
 # GitHub-hosted runners and publishes the frontend image by digest.
+# Card branches get only the fast lint gate (figmapot-lint.yml); a card is
+# merged through a `dg/train-<topic>` branch whose exact SHA passes this run.
 
 defaults:
   run:
@@ -13,8 +15,7 @@ on:
   push:
     branches:
       - figmapot
-      - designgate
-      - 'dg/**'
+      - 'dg/train-**'
 
   workflow_dispatch:
 

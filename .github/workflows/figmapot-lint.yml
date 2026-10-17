@@ -1,0 +1,46 @@
+name: "CI: FigmaPot Lint"
+
+# Fast gate for card branches (critic/12): cljfmt, clj-kondo and stylelint
+# only, a few minutes instead of the full build. The full frontend build,
+# tests and image (figmapot-ci.yml) run on `figmapot` and `dg/train-**`.
+
+defaults:
+  run:
+    shell: bash
+
+on:
+  push:
+    branches:
+      - 'dg/**'
+
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  DEVENV_IMAGE: penpotapp/devenv:latest
+
+jobs:
+  frontend-lint:
+    name: "Frontend Lint"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Pull devenv image
+        run: docker pull "$DEVENV_IMAGE"
+
+      - name: Lint
+        run: |
+          docker run --rm \
+            --mount source="$GITHUB_WORKSPACE",type=bind,target=/home/penpot/penpot \
+            -w /home/penpot/penpot/frontend \
+            "$DEVENV_IMAGE" bash -c 'pnpm install && pnpm run lint:clj && pnpm run check-fmt:clj && pnpm run lint:scss'
