@@ -186,8 +186,7 @@
 .asset-update {
   @include t.use-typography("body-small");
 
-  align-self: center;
-  justify-self: end;
+  place-self: center end;
   height: $sz-24;
   padding: var(--sp-xxs) var(--sp-s);
 }
