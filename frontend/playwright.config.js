@@ -58,6 +58,7 @@ export default defineConfig({
       },
       snapshotPathTemplate: "{testDir}/{testFilePath}-snapshots/{arg}.png",
       expect: {
+        timeout: process.env.CI ? 40000 : 5000,
         toHaveScreenshot: {
           maxDiffPixelRatio: 0.001,
         },
