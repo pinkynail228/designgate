@@ -171,7 +171,7 @@ test.describe("BUG 10934 - Double-clicking a text side handle sets auto-size", (
     // Select the text and zoom to fit, so it is fully visible in the viewport
     await workspace.clickLeafLayer("Fixed text");
     await page.keyboard.press("Shift+1");
-    await workspace.waitForIdle();
+    await workspace.waitForIdle({ timeout: 100 });
 
     return workspace;
   }
