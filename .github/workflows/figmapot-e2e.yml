@@ -63,7 +63,7 @@ jobs:
               pnpm exec playwright install chromium
               # Baseline triage: no retries, config per-test timeout (a shorter one
               # killed the 30 s workspace readiness wait); the list is also streamed to the log.
-              pnpm exec playwright test --project default --workers=4 \
+              pnpm exec playwright test --project default --workers=2 \
                 --retries=0 --reporter=list 2>&1 \
                 | tee test-results-list.txt
               rc=${PIPESTATUS[0]}
