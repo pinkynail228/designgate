@@ -171,6 +171,10 @@ test("Selection size badge shows dimensions for path shapes", async ({ page }) =
   // Workaround: hover viewport first to avoid nil mouse position crash
   await workspacePage.viewport.hover();
 
+  const pathEditionToolbar = page.getByRole("button", {
+    name: "Draw nodes (P)",
+  });
+
   // Draw a path
   await workspacePage.pathButton.click();
   await workspacePage.clickAt(779, 163);
@@ -179,8 +183,16 @@ test("Selection size badge shows dimensions for path shapes", async ({ page }) =
   // Finish drawing (commits path, path enters edition mode)
   await page.keyboard.press("Escape");
 
+  // The commit triggered by the first Escape is asynchronous. Wait until the
+  // "Path" layer exists and the edition toolbar is shown, otherwise the second
+  // Escape can reach the workspace while the commit is still running and is
+  // consumed by the drawing stream instead of exiting edition mode.
+  await expect(workspacePage.layers.getByText("Path")).toBeVisible();
+  await expect(pathEditionToolbar).toBeVisible();
+
   // Exit edition mode (path stays selected, badge becomes visible)
   await page.keyboard.press("Escape");
+  await expect(pathEditionToolbar).toBeHidden();
 
   const badgeText = page.locator(".selection-size-badge text");
   await expect(badgeText).toBeVisible();
