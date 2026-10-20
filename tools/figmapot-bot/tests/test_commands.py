@@ -26,6 +26,12 @@ class ParseTests(unittest.TestCase):
             "Fix the header",
         )
 
+    def test_penpot_zero_width_spaces_around_mention(self):
+        # Real Penpot 2.18 content: the editor wraps the mention in U+200B.
+        content = "​" + MENTION + " ​task Проверка бота"
+        self.assertEqual(parse_task_command(comment(OWNER_ID, content, [BOT_PROFILE_ID]), OWNER_ID, BOT_PROFILE_ID),
+                         "Проверка бота")
+
     def test_case_insensitive_task_and_title_trimmed(self):
         content = MENTION + "   TaSk    Fix  the header   "
         self.assertEqual(parse_task_command(comment(OWNER_ID, content, [BOT_PROFILE_ID]), OWNER_ID, BOT_PROFILE_ID),

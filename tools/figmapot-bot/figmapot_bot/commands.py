@@ -7,6 +7,8 @@ from urllib.parse import urlencode
 ZERO_UUID = "00000000-0000-0000-0000-000000000000"
 MAX_TITLE = 200
 MAX_PENPOT_CONTENT = 750
+# The Penpot comment editor wraps mentions in zero-width characters (U+200B).
+ZERO_WIDTH = re.compile("[​‌‍⁠﻿]")
 
 
 def parse_task_command(comment, owner_id, bot_profile_id):
@@ -23,7 +25,7 @@ def parse_task_command(comment, owner_id, bot_profile_id):
     mentions = comment.get("mentions") or []
     if bot_profile_id not in mentions:
         return None
-    content = comment.get("content") or ""
+    content = ZERO_WIDTH.sub("", comment.get("content") or "")
     pattern = r"\A@\[[^\]]*\]\(" + re.escape(bot_profile_id) + r"\)\s+task\s+(?P<title>.*)\Z"
     match = re.match(pattern, content, re.IGNORECASE | re.DOTALL)
     if not match:
