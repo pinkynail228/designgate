@@ -4,7 +4,7 @@
 # TASK_FILE is plain text; the shared test-environment preamble is appended.
 # ZS_RUNTIME=deepseek: DeepSeek worker through the shared Yandex adapter (launchd instance
 # local.yandex-adapter.designgate on ${ADAPTER_PORT:-8798}; code and rules in ~/.local/share/yandex-adapter)
-# and gpt-6.1-sol xhigh reviewers on the default Codex lane (runtime-deepseek.json).
+# and gpt-6.1-sol high reviewers on the default Codex lane (runtime-deepseek.json).
 # ZS_RUNTIME=deepseek-fast: same worker, gpt-6.1-sol high reviewers; for frontend/UI cards, not backend/data model.
 # Run state lives under ZS_ROOT (default /Users/Shared/figmapot/runs, survives reboots): worktree NAME, NAME.lock,
 # NAME.tmp, NAME.base. The worktree starts from ZS_BASE (default origin/figmapot), not from the lane's HEAD.
