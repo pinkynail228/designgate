@@ -1,0 +1,70 @@
+"""Entry point: ``python3 -m figmapot_bot``."""
+from __future__ import annotations
+
+import argparse
+import logging
+import sys
+
+from .adapters import JiraClient, PenpotClient, TelegramClient
+from .bot import Bot
+from .clock import Clock
+from .config import ConfigError, load_config
+from .state import AlreadyRunning, State
+
+LOG_FORMAT = "%(asctime)s %(levelname)s %(message)s"
+
+
+def configure_logging():
+    logging.basicConfig(level=logging.INFO, format=LOG_FORMAT)
+
+
+def build_bot(config, logger):
+    clock = Clock()
+    design = PenpotClient(config.penpot_url, config.bot_email, config.bot_password, clock, logger)
+    tracker = JiraClient(
+        config.jira_url,
+        config.jira_email,
+        config.jira_api_token,
+        config.jira_project_key,
+        config.jira_issue_type,
+        clock,
+        logger,
+    )
+    chat = TelegramClient(
+        config.telegram_bot_token,
+        config.telegram_chat_id,
+        clock,
+        logger,
+        api_base=config.telegram_api_base,
+    )
+    state = State(config.state_db, clock)
+    return Bot(config, clock, state, design, tracker, chat, logger)
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(prog="figmapot_bot", description="FigmaPot comment -> Jira bridge")
+    parser.add_argument("--once", action="store_true", help="run a single poll cycle and exit")
+    args = parser.parse_args(argv)
+
+    configure_logging()
+    logger = logging.getLogger("figmapot_bot")
+
+    try:
+        config = load_config()
+    except ConfigError as error:
+        print("figmapot-bot: %s" % error, file=sys.stderr)
+        return 2
+
+    try:
+        bot = build_bot(config, logger)
+    except AlreadyRunning as error:
+        print("figmapot-bot: %s" % error, file=sys.stderr)
+        return 3
+
+    logger.info("figmapot-bot starting (state db: %s)", config.state_db)
+    bot.run(once=args.once)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
