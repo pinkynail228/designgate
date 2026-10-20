@@ -17,6 +17,8 @@ import urllib.error
 import urllib.request
 
 DEFAULT_TIMEOUT = 15.0
+# Cloudflare (the Telegram relay) rejects the default "Python-urllib" agent with error 1010.
+USER_AGENT = "figmapot-bot/1.0"
 RETRY_STATUSES = (429, 500, 502, 503, 504)
 # Cap the exponential's exponent so ``2 ** attempt`` cannot overflow a float
 # for large attempt counters (a job may retry for a very long time).
@@ -76,6 +78,7 @@ def do_request(opener, method, url, data=None, headers=None, timeout=DEFAULT_TIM
     """Perform exactly one request. HTTP errors become ``Response`` objects."""
     try:
         request = urllib.request.Request(url, data=data, method=method)
+        request.add_header("User-Agent", USER_AGENT)
         for name, value in (headers or {}).items():
             request.add_header(name, value)
     except (ValueError, http.client.InvalidURL):

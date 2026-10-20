@@ -10,7 +10,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from figmapot_bot.adapters import TelegramClient
 from figmapot_bot.clock import FakeClock
-from figmapot_bot.httpclient import Response, retry_after_seconds
+from figmapot_bot.httpclient import USER_AGENT, Response, do_request, retry_after_seconds
 from figmapot_bot.state import AlreadyRunning, State
 
 from tests.support import BOT_PROFILE_ID, FILE_A, Harness, make_logger
@@ -76,6 +76,31 @@ class RobustnessTests(unittest.TestCase):
         thread = harness.state.get_thread("thread-1")
         self.assertEqual(thread["state"], "linked")
         self.assertEqual(thread["issue_key"], "FP-1")
+
+    def test_requests_send_own_user_agent(self):
+        sent = []
+
+        class Reply:
+            status = 200
+            headers = {}
+
+            def read(self):
+                return b"{}"
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *exc):
+                return False
+
+        class Opener:
+            def open(self, request, timeout=None):
+                sent.append(request.get_header("User-agent"))
+                return Reply()
+
+        do_request(Opener(), "POST", "https://relay.test/bot1:x/sendMessage", data=b"{}")
+        self.assertEqual(sent, [USER_AGENT])
+        self.assertNotIn("urllib", USER_AGENT.lower())
 
     def test_longer_of_header_and_json_retry_after_wins(self):
         body = b'{"ok": false, "parameters": {"retry_after": 60}}'
