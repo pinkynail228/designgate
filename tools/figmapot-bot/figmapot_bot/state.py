@@ -48,6 +48,23 @@ CREATE TABLE IF NOT EXISTS jobs (
     created_at REAL,
     updated_at REAL
 );
+CREATE TABLE IF NOT EXISTS onboarding_codes (
+    code       TEXT PRIMARY KEY,
+    person_key TEXT NOT NULL,
+    created_at REAL,
+    expires_at REAL,
+    used_at    REAL
+);
+CREATE TABLE IF NOT EXISTS onboarding_bindings (
+    person_key TEXT PRIMARY KEY,
+    chat_id,
+    user_id,
+    bound_at   REAL
+);
+CREATE TABLE IF NOT EXISTS onboarding_meta (
+    key   TEXT PRIMARY KEY,
+    value TEXT
+);
 """
 
 THREAD_STATES = ("pending", "sending", "linked", "needs-manual")
