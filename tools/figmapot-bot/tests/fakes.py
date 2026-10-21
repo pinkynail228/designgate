@@ -1,14 +1,39 @@
-"""Local HTTP fakes for Penpot, Jira and Telegram (loopback only)."""
+"""In-process HTTP fakes for Penpot, Jira and Telegram (no sockets).
+
+Every fake answers urllib requests directly: ``build_fake_opener`` registers a
+:class:`_FakeHandler` in place of urllib's socket-based ``HTTPHandler`` and the
+handler calls ``FakeHttp.serve`` for the request.  urllib itself still turns a
+status >= 400 into an ``HTTPError`` and still processes ``Set-Cookie`` headers,
+so the production code sees exactly what a loopback server would send.
+"""
 from __future__ import annotations
 
+import email.message
+import http.client
+import io
+import itertools
 import json
 import re
-import socket
 import threading
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+import urllib.error
+import urllib.parse
+import urllib.request
+import urllib.response
 
 DROP = object()
 ZERO_UUID = "00000000-0000-0000-0000-000000000000"
+
+# Synthetic loopback ports.  They are only labels: the fake transport never
+# binds or connects, but a distinct origin per fake lets the handler route.
+_PORTS = itertools.count(8100)
+
+
+class ProcessKilled(BaseException):
+    """The client process was killed after the fake persisted the request.
+
+    A ``BaseException`` (like ``KeyboardInterrupt``) escapes the bot's
+    ``except Exception`` handlers, exactly as a SIGKILL does in production.
+    """
 
 
 class Request:
@@ -22,59 +47,83 @@ class Request:
         return json.loads(self.body.decode("utf-8")) if self.body else None
 
 
-class _Handler(BaseHTTPRequestHandler):
-    protocol_version = "HTTP/1.1"
+class _FakeResponse(urllib.response.addinfourl):
+    """An ``addinfourl`` that also carries the reason phrase urllib expects."""
 
-    def log_message(self, fmt, *args):  # silence
-        pass
+    def __init__(self, fp, headers, url, code, msg=""):
+        super().__init__(fp, headers, url, code)
+        self.msg = msg
 
-    def _dispatch(self):
-        length = int(self.headers.get("Content-Length") or 0)
-        body = self.rfile.read(length) if length else b""
-        try:
-            result = self.server.fake.serve(self.command, self.path, dict(self.headers), body)
-        except Exception as error:  # pragma: no cover - defensive
-            result = (500, {}, json.dumps({"error": str(error)}).encode())
-        if result is DROP:
-            self.close_connection = True
-            try:
-                self.connection.shutdown(socket.SHUT_RDWR)
-            except OSError:
-                pass
-            self.connection.close()
-            return
-        status, headers, payload = result
-        try:
-            self.send_response(status)
-            for name, value in headers.items():
-                self.send_header(name, value)
-            self.send_header("Content-Length", str(len(payload)))
-            self.end_headers()
-            self.wfile.write(payload)
-        except (BrokenPipeError, ConnectionResetError, OSError):
-            pass
 
-    do_GET = do_POST = do_PUT = do_DELETE = _dispatch
+class _FakeHandler(urllib.request.HTTPHandler):
+    """Serve requests from the fakes in-process, never opening a socket.
+
+    Subclassing ``HTTPHandler`` makes ``build_opener`` drop the real
+    socket-based handler, so no connection can ever be attempted.
+    """
+
+    def __init__(self, fakes):
+        self._fakes = list(fakes)
+
+    def http_open(self, request):
+        netloc = urllib.parse.urlsplit(request.full_url).netloc
+        for fake in self._fakes:
+            if fake.netloc == netloc:
+                return fake.open(request)
+        # Do not echo the URL: a Telegram URL embeds the bot token.
+        raise urllib.error.URLError("no fake registered for this host")
+
+    https_open = http_open
+
+
+def build_fake_opener(fakes, cookiejar=None):
+    """An urllib opener that serves every request from ``fakes`` in-process."""
+    handlers = []
+    if cookiejar is not None:
+        handlers.append(urllib.request.HTTPCookieProcessor(cookiejar))
+    handlers.append(_FakeHandler(fakes))
+    return urllib.request.build_opener(*handlers)
 
 
 class FakeHttp:
     def __init__(self):
         self.requests = []
         self._lock = threading.Lock()
-        self.server = ThreadingHTTPServer(("127.0.0.1", 0), _Handler)
-        self.server.fake = self
-        self.port = self.server.server_address[1]
-        self._thread = threading.Thread(target=self.server.serve_forever, daemon=True)
-        self._thread.start()
+        self.port = next(_PORTS)
 
     @property
     def url(self):
         return "http://127.0.0.1:%d" % self.port
 
+    @property
+    def netloc(self):
+        return "127.0.0.1:%d" % self.port
+
     def serve(self, method, path, headers, body):
         with self._lock:
             self.requests.append(Request(method, path, headers, body))
         return self.route(method, path, headers, body)
+
+    def open(self, request):
+        """Answer one urllib request, mirroring the old loopback handler."""
+        parts = urllib.parse.urlsplit(request.full_url)
+        path = parts.path or "/"
+        if parts.query:
+            path += "?" + parts.query
+        result = self.serve(
+            request.get_method(), path, dict(request.header_items()), request.data or b""
+        )
+        if result is DROP:
+            # The old handler closed the connection without a response.
+            raise urllib.error.URLError("fake connection dropped")
+        status, headers, payload = result
+        message = email.message.Message()
+        for name, value in headers.items():
+            message[name] = value
+        return _FakeResponse(
+            io.BytesIO(payload), message, request.full_url, status,
+            http.client.responses.get(status, ""),
+        )
 
     def route(self, method, path, headers, body):  # pragma: no cover - abstract
         return self.json_response(404, {"error": "not found"})
@@ -102,8 +151,7 @@ class FakeHttp:
         return status, merged, payload
 
     def stop(self):
-        self.server.shutdown()
-        self.server.server_close()
+        """No teardown: the fake never held a socket or a server thread."""
 
 
 class FakePenpot(FakeHttp):
@@ -254,6 +302,7 @@ class FakeJira(FakeHttp):
         self.post_retry_after = None
         self.post_retry_after_header = "Retry-After"
         self.retry_after_body = None
+        self.crash_after_post = False
         super().__init__()
 
     def add_issue(self, key, labels=(), created="2026-10-20T10:00:00.000+0000"):
@@ -284,6 +333,10 @@ class FakeJira(FakeHttp):
             if self.block_post is not None:
                 self.post_started.set()
                 self.block_post.wait(30)
+            if self.crash_after_post:
+                # The issue is persisted, but the client is gone before it can
+                # read the response: the state stays "sending" for recovery.
+                raise ProcessKilled()
             return self.json_response(201, {"id": key, "key": key})
         if method == "GET" and path.startswith("/rest/api/3/search/jql"):
             if self.fail_search_times > 0:

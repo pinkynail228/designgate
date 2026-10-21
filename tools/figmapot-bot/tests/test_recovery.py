@@ -2,64 +2,46 @@
 from __future__ import annotations
 
 import os
-import subprocess
 import sys
-import threading
 import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from tests.support import FILE_A, Harness
+from tests.fakes import ProcessKilled
+from tests.support import FILE_A, Harness, run_once
 
-PACKAGE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ISSUE_PATH = "/rest/api/3/issue"
 
-class RecoveryTests(unittest.TestCase):
-    def _run_once(self, harness, timeout=30):
-        return subprocess.run(
-            [sys.executable, "-m", "figmapot_bot", "--once"],
-            cwd=PACKAGE_DIR,
-            env=harness.env_environment(),
-            capture_output=True,
-            timeout=timeout,
-        )
 
+class RecoveryTests(unittest.TestCase):
     def test_post_then_crash_is_reconciled_by_label(self):
         harness = Harness(files=(FILE_A,))
         self.addCleanup(harness.close)
         harness.penpot.add_thread(FILE_A, "thread-1")
 
         harness.release()
-        result = self._run_once(harness)
-        self.assertEqual(result.returncode, 0, result.stderr.decode())
+        self.assertEqual(run_once(harness), 0, harness.last_run_output)
         harness.reopen()
         self.assertTrue(harness.state.baseline_complete())
 
         harness.command_comment("thread-1", "comment-1", title="Crashy")
-        harness.jira.block_post = threading.Event()
+        # The fake persists the issue and then the client dies before reading
+        # the response, which is what a killed process leaves behind.
+        harness.jira.crash_after_post = True
         harness.release()
-        process = subprocess.Popen(
-            [sys.executable, "-m", "figmapot_bot", "--once"],
-            cwd=PACKAGE_DIR,
-            env=harness.env_environment(),
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-        )
-        self.assertTrue(harness.jira.post_started.wait(15), "the POST never started")
-        process.kill()
-        process.wait(15)
-        harness.jira.block_post.set()
+        with self.assertRaises(ProcessKilled):
+            run_once(harness)
+        harness.jira.crash_after_post = False
         harness.reopen()
 
         thread = harness.state.get_thread("thread-1")
         self.assertEqual(thread["state"], "sending")
         self.assertEqual(harness.jira.count("POST", ISSUE_PATH), 1)
-        # The fake persisted the issue before the barrier, so it is a real one.
+        # The fake persisted the issue before the crash, so it is a real one.
         self.assertEqual([issue["key"] for issue in harness.jira.issues], ["FP-1"])
 
         harness.release()
-        result = self._run_once(harness)
-        self.assertEqual(result.returncode, 0, result.stderr.decode())
+        self.assertEqual(run_once(harness), 0, harness.last_run_output)
         harness.reopen()
 
         thread = harness.state.get_thread("thread-1")

@@ -1,6 +1,8 @@
 """Shared harness: fakes, fake clock, temp state db and a wired Bot."""
 from __future__ import annotations
 
+import contextlib
+import http.cookiejar
 import io
 import logging
 import os
@@ -16,7 +18,7 @@ from figmapot_bot.clock import FakeClock
 from figmapot_bot.config import load_config
 from figmapot_bot.state import State
 
-from .fakes import FakeJira, FakePenpot, FakeTelegram
+from .fakes import FakeJira, FakePenpot, FakeTelegram, build_fake_opener
 
 OWNER_ID = "owner-uuid"
 BOT_PROFILE_ID = "bot-uuid-0000"
@@ -78,16 +80,19 @@ class Harness:
             handle.write("\n".join(lines) + "\n")
 
     def _build_bot(self):
+        fakes = [self.penpot, self.jira, self.telegram]
         design = PenpotClient(
-            self.config.penpot_url, self.config.bot_email, self.config.bot_password, self.clock, self.logger
+            self.config.penpot_url, self.config.bot_email, self.config.bot_password, self.clock, self.logger,
+            opener=build_fake_opener(fakes, http.cookiejar.CookieJar()),
         )
         tracker = JiraClient(
             self.config.jira_url, self.config.jira_email, self.config.jira_api_token,
             self.config.jira_project_key, self.config.jira_issue_type, self.clock, self.logger,
+            opener=build_fake_opener(fakes),
         )
         chat = TelegramClient(
             self.config.telegram_bot_token, self.config.telegram_chat_id, self.clock, self.logger,
-            api_base=self.telegram.url,
+            api_base=self.telegram.url, opener=build_fake_opener(fakes),
         )
         return Bot(self.config, self.clock, self.state, design, tracker, chat, self.logger)
 
@@ -95,7 +100,7 @@ class Harness:
         self.bot.cycle()
 
     def release(self):
-        """Close the state db so a subprocess can take the lock."""
+        """Close the state db so another run can take the lock."""
         if self._open:
             self.state.close()
             self._open = False
@@ -135,3 +140,62 @@ class Harness:
             self.jira.stop()
             self.telegram.stop()
             shutil.rmtree(self.tmp, ignore_errors=True)
+
+
+@contextlib.contextmanager
+def _fake_transport(fakes):
+    """Make every opener the production code builds serve ``fakes`` in-process."""
+    from figmapot_bot import adapters
+
+    real_build_opener = adapters.build_opener
+    adapters.build_opener = lambda cookiejar=None: build_fake_opener(fakes, cookiejar)
+    try:
+        yield
+    finally:
+        adapters.build_opener = real_build_opener
+
+
+def run_once(harness):
+    """Run the ``--once`` CLI entry point against the harness fakes, in-process.
+
+    The sandbox forbids binding or connecting sockets, so the child is not a
+    fresh process: ``figmapot_bot.__main__.main`` runs here with the same
+    in-process fake transport the harness uses.  The state db the run opens is
+    closed before returning so the caller can reopen its own.
+    """
+    import figmapot_bot.__main__ as cli
+
+    fakes = [harness.penpot, harness.jira, harness.telegram]
+    real_state = cli.State
+    created = []
+
+    class TrackedState(real_state):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            created.append(self)
+
+    saved_environ = dict(os.environ)
+    root = logging.getLogger()
+    saved_handlers = root.handlers[:]
+    saved_level = root.level
+    output = io.StringIO()
+
+    try:
+        cli.State = TrackedState
+        os.environ.clear()
+        os.environ.update(harness.env_environment())
+        root.handlers[:] = []
+        with _fake_transport(fakes), contextlib.redirect_stderr(output):
+            return cli.main(["--once"])
+    finally:
+        harness.last_run_output = output.getvalue()
+        cli.State = real_state
+        root.handlers[:] = saved_handlers
+        root.setLevel(saved_level)
+        for state in created:
+            try:
+                state.close()
+            except Exception:
+                pass
+        os.environ.clear()
+        os.environ.update(saved_environ)

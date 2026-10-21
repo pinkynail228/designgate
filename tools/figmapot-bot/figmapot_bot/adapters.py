@@ -63,7 +63,8 @@ def _is_not_found(status, code, hint):
 class PenpotClient:
     """Design adapter talking to the Penpot RPC API."""
 
-    def __init__(self, base_url, email, password, clock, logger, timeout=DEFAULT_TIMEOUT, rng=None):
+    def __init__(self, base_url, email, password, clock, logger, timeout=DEFAULT_TIMEOUT, rng=None,
+                 opener=None):
         self.base_url = base_url.rstrip("/")
         self.email = email
         self.password = password
@@ -72,7 +73,7 @@ class PenpotClient:
         self.timeout = timeout
         self.rng = rng
         self._cookiejar = http.cookiejar.CookieJar()
-        self.opener = build_opener(self._cookiejar)
+        self.opener = opener if opener is not None else build_opener(self._cookiejar)
         self._profile_id = None
         self.login_count = 0
         self._logged_in = False
@@ -228,7 +229,7 @@ class JiraClient:
     """Tracker adapter talking to the Jira Cloud REST v3 API."""
 
     def __init__(self, base_url, email, api_token, project_key, issue_type, clock, logger,
-                 timeout=DEFAULT_TIMEOUT, rng=None):
+                 timeout=DEFAULT_TIMEOUT, rng=None, opener=None):
         self.base_url = base_url.rstrip("/")
         self.project_key = project_key
         self.issue_type = issue_type
@@ -238,7 +239,7 @@ class JiraClient:
         self.rng = rng
         token = base64.b64encode(("%s:%s" % (email, api_token)).encode("utf-8")).decode("ascii")
         self.auth_header = "Basic " + token
-        self.opener = build_opener()
+        self.opener = opener if opener is not None else build_opener()
 
     def _headers(self):
         return {"Authorization": self.auth_header, "Accept": "application/json", "Content-Type": "application/json"}
@@ -319,7 +320,7 @@ class TelegramClient:
     """Chat adapter talking to the Telegram Bot API."""
 
     def __init__(self, bot_token, chat_id, clock, logger, api_base=None,
-                 timeout=DEFAULT_TIMEOUT, rng=None):
+                 timeout=DEFAULT_TIMEOUT, rng=None, opener=None):
         from .config import DEFAULT_TELEGRAM_API_BASE
 
         self.bot_token = bot_token
@@ -329,7 +330,7 @@ class TelegramClient:
         self.api_base = (api_base or DEFAULT_TELEGRAM_API_BASE).rstrip("/")
         self.timeout = timeout
         self.rng = rng
-        self.opener = build_opener()
+        self.opener = opener if opener is not None else build_opener()
 
     def send_message(self, text):
         url = "%s/bot%s/sendMessage" % (self.api_base, self.bot_token)
