@@ -20,3 +20,11 @@ One row per finished `ZS_RUNTIME=deepseek` run. Objective columns first; the orc
 ## Reviewer medium vs high (wave 2, 2026-10-17)
 
 sol1m matched sol1 on the c2d known answer and on c3c3, at ~1.6-1.9 min per review vs 4.7-8.1 min. It missed one P2 on ds1 (state reset on tab switch) that a shadow high review caught; sol1 had missed it too. Small sample: keep medium only with a high shadow review on data/state cards.
+
+## Calibrated reviewer rules (bot wave 1, 2026-10-21)
+
+After the preamble blocking bar, round freeze and test budget (bdd25c8340), all four bot cards (t0, d1, d2, d3; sol1,
+DeepSeek worker) were accepted in review round 1 (1.3-5.9M input tokens each). Before: the bota run
+took 4 rounds and ~99 min with 21% reviewer precision. Cards carried recorded live payloads instead of invented
+ones. Orchestrator review still found one gap the reviewer passed (d1: `@Ivan`/`До` not case-insensitive while the
+people lookup is). Reviewers still ran 14-20 mutations per card against a one-guard budget: cost, not rounds.
