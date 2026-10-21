@@ -1,6 +1,8 @@
-"""AC-6: independent delivery jobs."""
+"""AC-6: independent delivery jobs; BOT-X AC-2: neutral notices rendered by the chat;
+BOT-X AC-3: deliveries survive a failing poll."""
 from __future__ import annotations
 
+import json
 import os
 import sys
 import unittest
@@ -90,6 +92,118 @@ class DeliveryTests(unittest.TestCase):
         pending = [job for job in harness.state.list_jobs(["pending"]) if job["kind"] == "property"]
         self.assertEqual(len(pending), 1)
         self.assertLessEqual(pending[0]["not_before"] - harness.clock.now(), 90)
+
+
+class NoticeTests(unittest.TestCase):
+    def telegram_job(self, harness, kind):
+        jobs = [job for job in harness.state.list_jobs() if job["kind"] == kind]
+        self.assertEqual(len(jobs), 1)
+        return json.loads(jobs[0]["payload"])
+
+    def test_issue_notice_is_rendered_by_the_chat_adapter(self):
+        harness = Harness(files=(FILE_A,))
+        self.addCleanup(harness.close)
+        harness.penpot.add_thread(FILE_A, "thread-1")
+        harness.cycle()
+        harness.command_comment("thread-1", "comment-1", title="Deliver me")
+
+        harness.cycle()
+
+        thread = harness.state.get_thread("thread-1")
+        expected = "New figmapot issue %s: %s\n%s\n%s" % (
+            thread["issue_key"], "Deliver me", thread["issue_url"], harness.bot._board_link(thread),
+        )
+        self.assertEqual([message["text"] for message in harness.telegram.delivered], [expected])
+        # The queued job carries the neutral notice, not the rendered text.
+        payload = self.telegram_job(harness, "telegram_message")
+        self.assertNotIn("text", payload)
+        notice = payload["notice"]
+        self.assertEqual(notice["kind"], "issue_created")
+        self.assertEqual(notice["title"], "Deliver me")
+        self.assertEqual(notice["issue_key"], thread["issue_key"])
+        self.assertEqual(notice["issue_url"], thread["issue_url"])
+        self.assertEqual(notice["board_url"], harness.bot._board_link(thread))
+        self.assertEqual(notice["thread_url"], harness.bot._thread_link(thread))
+
+    def test_needs_manual_notice_is_rendered_by_the_chat_adapter(self):
+        harness = Harness(files=(FILE_A,))
+        self.addCleanup(harness.close)
+        harness.penpot.add_thread(FILE_A, "thread-1")
+        harness.cycle()
+        harness.command_comment("thread-1", "comment-1", title="Lost")
+        harness.jira.drop_post = True
+
+        harness.cycle()  # empty search #1
+        harness.clock.advance(60)
+        harness.cycle()  # empty search #2 -> needs manual
+
+        self.assertEqual(
+            [message["text"] for message in harness.telegram.delivered],
+            ["figmapot: no Jira issue found for thread thread-1 (comment comment-1) "
+             "after two empty searches. Manual action needed."],
+        )
+        payload = self.telegram_job(harness, "telegram_alert")
+        self.assertNotIn("text", payload)
+        self.assertEqual(payload["notice"]["kind"], "needs_manual")
+
+    def test_pending_text_jobs_are_delivered_unchanged(self):
+        """BOT-X AC-2: jobs already in a live DB carry ready text."""
+        harness = Harness(files=(FILE_A,))
+        self.addCleanup(harness.close)
+        harness.cycle()  # baseline
+        harness.state.add_job("telegram_message", {"text": "legacy notice"})
+        harness.state.add_job("telegram_alert", {"text": "legacy alert"})
+        harness.restart()  # the pending jobs come from a previous run
+
+        harness.cycle()
+
+        self.assertEqual(
+            [message["text"] for message in harness.telegram.delivered],
+            ["legacy notice", "legacy alert"],
+        )
+        self.assertEqual(harness.state.list_jobs(["pending"]), [])
+
+
+class PollFailureTests(unittest.TestCase):
+    def test_pending_deliveries_survive_a_failing_penpot_poll(self):
+        """BOT-X AC-3: a Penpot read failure must not starve the deliveries."""
+        harness = Harness(files=(FILE_A,))
+        self.addCleanup(harness.close)
+        harness.penpot.add_thread(FILE_A, "thread-1")
+        harness.cycle()  # baseline
+        harness.state.add_job("telegram_message", {"text": "written before the outage"})
+        harness.penpot.fail_threads_for.add(FILE_A)  # every Penpot read fails now
+
+        # The poll error is re-raised after the deliveries, so --once still fails.
+        with self.assertRaises(Exception):
+            harness.bot.run(once=True)
+
+        self.assertEqual(
+            [message["text"] for message in harness.telegram.delivered],
+            ["written before the outage"],
+        )
+        self.assertEqual(harness.state.list_jobs(["pending"]), [])
+        self.assertIn("poll cycle failed", harness.logs())
+
+    def test_pending_deliveries_survive_a_penpot_outage_on_restart(self):
+        """BOT-X AC-3: even a failing profile read must not starve the deliveries."""
+        harness = Harness(files=(FILE_A,))
+        self.addCleanup(harness.close)
+        harness.penpot.add_thread(FILE_A, "thread-1")
+        harness.cycle()  # baseline
+        harness.state.add_job("telegram_message", {"text": "written before the outage"})
+        harness.restart()  # a fresh run reads the profile again
+        harness.penpot.fail_logins = 1000  # Penpot is unreachable
+
+        # The poll error is re-raised after the deliveries, so --once still fails.
+        with self.assertRaises(Exception):
+            harness.bot.run(once=True)
+
+        self.assertEqual(
+            [message["text"] for message in harness.telegram.delivered],
+            ["written before the outage"],
+        )
+        self.assertEqual(harness.state.list_jobs(["pending"]), [])
 
 
 if __name__ == "__main__":

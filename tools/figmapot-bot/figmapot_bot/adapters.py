@@ -8,6 +8,7 @@ from __future__ import annotations
 import base64
 import http.cookiejar
 import json
+import re
 from urllib.parse import urlencode
 
 from .httpclient import (
@@ -22,6 +23,9 @@ from .httpclient import (
     single_request,
 )
 from .commands import ZERO_UUID
+
+# The Penpot comment editor wraps mentions in zero-width characters (U+200B).
+ZERO_WIDTH = re.compile("[\u200b\u200c\u200d\u2060\ufeff]")
 
 
 def mask_secret(text, *secrets):
@@ -138,6 +142,26 @@ class PenpotClient:
             {"threadId": thread_id, "content": content, "mentions": list(mentions or [])},
             retry_transport=False,
         )
+
+    @staticmethod
+    def command_text(comment, bot_profile_id):
+        """Return the command text of a Penpot comment, or None.
+
+        Penpot addressing is adapter business: the ``@[Name](id)`` mention
+        syntax, the zero-width characters the editor wraps it in, and the
+        comment's own ``mentions`` list.  The core only ever sees the neutral
+        text that follows the mention.
+        """
+        if not comment:
+            return None
+        if bot_profile_id not in (comment.get("mentions") or []):
+            return None
+        content = ZERO_WIDTH.sub("", comment.get("content") or "")
+        pattern = r"\A\s*@\[[^\]]*\]\(" + re.escape(bot_profile_id) + r"\)(?P<rest>.*)\Z"
+        match = re.match(pattern, content, re.IGNORECASE | re.DOTALL)
+        if not match:
+            return None
+        return match.group("rest").strip()
 
     # -- internals ---------------------------------------------------------
     def _json_headers(self):
@@ -316,6 +340,24 @@ class TelegramError(Exception):
         self.status = status
 
 
+def render_notice(notice):
+    """Render a neutral notice payload into today's Telegram text."""
+    kind = (notice or {}).get("kind")
+    if kind == "issue_created":
+        return "New figmapot issue %s: %s\n%s\n%s" % (
+            notice.get("issue_key"),
+            notice.get("title"),
+            notice.get("issue_url"),
+            notice.get("board_url"),
+        )
+    if kind == "needs_manual":
+        return (
+            "figmapot: no Jira issue found for thread %s (comment %s) after two empty searches. "
+            "Manual action needed." % (notice.get("thread_id"), notice.get("comment_id"))
+        )
+    raise TelegramError("unknown notice kind %r" % (kind,))
+
+
 class TelegramClient:
     """Chat adapter talking to the Telegram Bot API."""
 
@@ -332,7 +374,10 @@ class TelegramClient:
         self.rng = rng
         self.opener = opener if opener is not None else build_opener()
 
-    def send_message(self, text):
+    def send_message(self, text=None, notice=None):
+        """Send ``text``, or render the neutral ``notice`` and send that."""
+        if notice is not None:
+            text = render_notice(notice)
         url = "%s/bot%s/sendMessage" % (self.api_base, self.bot_token)
         body = json.dumps({"chat_id": self.chat_id, "text": text}).encode("utf-8")
         try:

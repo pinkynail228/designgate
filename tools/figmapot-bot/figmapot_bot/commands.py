@@ -1,4 +1,10 @@
-"""Command detection plus the small value builders the bot needs."""
+"""Command detection plus the small value builders the bot needs.
+
+The source adapter (see ``adapters.PenpotClient.command_text``) owns the
+Penpot-specific addressing: it strips the comment's bot mention and hands the
+core a neutral ``command_text``.  This module keeps the owner check and the
+neutral ``task <title>`` grammar.
+"""
 from __future__ import annotations
 
 import re
@@ -7,27 +13,23 @@ from urllib.parse import urlencode
 ZERO_UUID = "00000000-0000-0000-0000-000000000000"
 MAX_TITLE = 200
 MAX_PENPOT_CONTENT = 750
-# The Penpot comment editor wraps mentions in zero-width characters (U+200B).
-ZERO_WIDTH = re.compile("[​‌‍⁠﻿]")
 
 
-def parse_task_command(comment, owner_id, bot_profile_id):
+def parse_task_command(comment, owner_id, command_text):
     """Return the task title when ``comment`` is a valid ``task`` command.
 
-    Everything must hold: the comment belongs to the owner, its own ``mentions``
-    contains the bot, and the whole content is the bot's mention, whitespace,
-    ``task`` (any case), whitespace and a 1-200 char title.
+    The adapter has already stripped the Penpot addressing, so the whole
+    ``command_text`` must read ``task`` (any case), whitespace and a 1-200 char
+    title.  Everything must hold: the comment belongs to the owner (which also
+    excludes the bot's own replies) and the grammar matches.
     """
     if not comment:
         return None
     if comment.get("ownerId") != owner_id:
         return None
-    mentions = comment.get("mentions") or []
-    if bot_profile_id not in mentions:
+    if command_text is None:
         return None
-    content = ZERO_WIDTH.sub("", comment.get("content") or "")
-    pattern = r"\A@\[[^\]]*\]\(" + re.escape(bot_profile_id) + r"\)\s+task\s+(?P<title>.*)\Z"
-    match = re.match(pattern, content, re.IGNORECASE | re.DOTALL)
+    match = re.match(r"\Atask\s+(?P<title>.*)\Z", command_text, re.IGNORECASE | re.DOTALL)
     if not match:
         return None
     title = match.group("title").replace("\r\n", " ").replace("\n", " ").replace("\r", " ")

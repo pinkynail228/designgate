@@ -1,4 +1,4 @@
-"""AC-2: command detection rules and the edit rule."""
+"""AC-2: command detection rules and the edit rule; BOT-X AC-1: addressing split."""
 from __future__ import annotations
 
 import os
@@ -7,6 +7,7 @@ import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from figmapot_bot.adapters import PenpotClient
 from figmapot_bot.commands import parse_task_command
 
 from tests.support import BOT_PROFILE_ID, OWNER_ID, Harness
@@ -19,55 +20,85 @@ def comment(owner_id, content, mentions):
     return {"id": "c1", "ownerId": owner_id, "content": content, "mentions": list(mentions)}
 
 
+def parse(comment, owner_id=OWNER_ID, bot_profile_id=BOT_PROFILE_ID):
+    """Penpot addressing (adapter) plus the owner check and grammar (core)."""
+    command_text = PenpotClient.command_text(comment, bot_profile_id)
+    return parse_task_command(comment, owner_id, command_text)
+
+
+class AddressingTests(unittest.TestCase):
+    """BOT-X AC-1: the Penpot adapter turns a comment into neutral command text."""
+
+    def test_adapter_strips_the_mention(self):
+        content = MENTION + " task Fix the header"
+        self.assertEqual(
+            PenpotClient.command_text(comment(OWNER_ID, content, [BOT_PROFILE_ID]), BOT_PROFILE_ID),
+            "task Fix the header",
+        )
+
+    def test_adapter_needs_the_mention_at_the_start(self):
+        # Anything but whitespace before the mention means the bot is addressed
+        # mid-sentence, not commanded.
+        content = "hello " + MENTION + " task Fix the header"
+        self.assertIsNone(PenpotClient.command_text(comment(OWNER_ID, content, [BOT_PROFILE_ID]), BOT_PROFILE_ID))
+
+    def test_adapter_skips_whitespace_before_the_mention(self):
+        content = "  " + MENTION + " task Fix the header"
+        self.assertEqual(
+            PenpotClient.command_text(comment(OWNER_ID, content, [BOT_PROFILE_ID]), BOT_PROFILE_ID),
+            "task Fix the header",
+        )
+
+    def test_adapter_needs_the_bot_in_the_comments_own_mentions(self):
+        content = MENTION + " task Fix the header"
+        self.assertIsNone(PenpotClient.command_text(comment(OWNER_ID, content, []), BOT_PROFILE_ID))
+        self.assertIsNone(PenpotClient.command_text(comment(OWNER_ID, content, [OTHER_ID]), BOT_PROFILE_ID))
+
+
 class ParseTests(unittest.TestCase):
     def test_valid_command(self):
         self.assertEqual(
-            parse_task_command(comment(OWNER_ID, MENTION + " task Fix the header", [BOT_PROFILE_ID]), OWNER_ID, BOT_PROFILE_ID),
+            parse(comment(OWNER_ID, MENTION + " task Fix the header", [BOT_PROFILE_ID])),
             "Fix the header",
         )
 
     def test_penpot_zero_width_spaces_around_mention(self):
         # Real Penpot 2.18 content: the editor wraps the mention in U+200B.
-        content = "​" + MENTION + " ​task Проверка бота"
-        self.assertEqual(parse_task_command(comment(OWNER_ID, content, [BOT_PROFILE_ID]), OWNER_ID, BOT_PROFILE_ID),
-                         "Проверка бота")
+        content = "\u200b" + MENTION + " \u200btask Проверка бота"
+        self.assertEqual(parse(comment(OWNER_ID, content, [BOT_PROFILE_ID])), "Проверка бота")
 
     def test_case_insensitive_task_and_title_trimmed(self):
         content = MENTION + "   TaSk    Fix  the header   "
-        self.assertEqual(parse_task_command(comment(OWNER_ID, content, [BOT_PROFILE_ID]), OWNER_ID, BOT_PROFILE_ID),
-                         "Fix  the header")
+        self.assertEqual(parse(comment(OWNER_ID, content, [BOT_PROFILE_ID])), "Fix  the header")
 
     def test_newlines_in_title_become_spaces(self):
         content = MENTION + " task line one\nline two"
-        self.assertEqual(parse_task_command(comment(OWNER_ID, content, [BOT_PROFILE_ID]), OWNER_ID, BOT_PROFILE_ID),
-                         "line one line two")
+        self.assertEqual(parse(comment(OWNER_ID, content, [BOT_PROFILE_ID])), "line one line two")
 
     def test_bots_own_reply_is_not_a_command(self):
         content = "@[Owner](%s) task something" % OWNER_ID
-        self.assertIsNone(parse_task_command(comment(BOT_PROFILE_ID, content, [OWNER_ID]), OWNER_ID, BOT_PROFILE_ID))
+        self.assertIsNone(parse(comment(BOT_PROFILE_ID, content, [OWNER_ID])))
 
     def test_non_owner_comment_is_ignored(self):
         content = MENTION + " task Fix the header"
-        self.assertIsNone(parse_task_command(comment(OTHER_ID, content, [BOT_PROFILE_ID]), OWNER_ID, BOT_PROFILE_ID))
+        self.assertIsNone(parse(comment(OTHER_ID, content, [BOT_PROFILE_ID])))
 
     def test_mention_on_thread_but_not_on_comment(self):
         # Otherwise-valid command text, but the comment's own mentions list is
         # empty (only the thread accumulated the bot mention).
         content = MENTION + " task Fix the header"
-        self.assertIsNone(parse_task_command(comment(OWNER_ID, content, []), OWNER_ID, BOT_PROFILE_ID))
+        self.assertIsNone(parse(comment(OWNER_ID, content, [])))
         # A different mention on the comment must not satisfy the guard either.
-        self.assertIsNone(
-            parse_task_command(comment(OWNER_ID, content, [OTHER_ID]), OWNER_ID, BOT_PROFILE_ID)
-        )
+        self.assertIsNone(parse(comment(OWNER_ID, content, [OTHER_ID])))
 
     def test_extra_text_before_mention(self):
         content = "hello " + MENTION + " task Fix the header"
-        self.assertIsNone(parse_task_command(comment(OWNER_ID, content, [BOT_PROFILE_ID]), OWNER_ID, BOT_PROFILE_ID))
+        self.assertIsNone(parse(comment(OWNER_ID, content, [BOT_PROFILE_ID])))
 
     def test_title_too_long_or_empty(self):
-        self.assertIsNone(parse_task_command(comment(OWNER_ID, MENTION + " task " + "x" * 201, [BOT_PROFILE_ID]), OWNER_ID, BOT_PROFILE_ID))
-        self.assertIsNone(parse_task_command(comment(OWNER_ID, MENTION + " task   ", [BOT_PROFILE_ID]), OWNER_ID, BOT_PROFILE_ID))
-        self.assertIsNone(parse_task_command(comment(OWNER_ID, MENTION + " task", [BOT_PROFILE_ID]), OWNER_ID, BOT_PROFILE_ID))
+        self.assertIsNone(parse(comment(OWNER_ID, MENTION + " task " + "x" * 201, [BOT_PROFILE_ID])))
+        self.assertIsNone(parse(comment(OWNER_ID, MENTION + " task   ", [BOT_PROFILE_ID])))
+        self.assertIsNone(parse(comment(OWNER_ID, MENTION + " task", [BOT_PROFILE_ID])))
 
 
 class EditTests(unittest.TestCase):

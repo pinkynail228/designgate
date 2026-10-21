@@ -43,14 +43,23 @@ class Bot:
             self.clock.sleep(self.config.poll_seconds)
 
     def cycle(self):
-        self.bot_profile_id = self.design.get_profile_id()
         if not self.state.baseline_complete():
+            self.bot_profile_id = self.design.get_profile_id()
             self._run_baseline()
             self.logger.info("poll cycle: baseline complete")
             return
-        self._poll()
-        self._process_threads()
+        # A failing read must not starve the deliveries: run the delivery pass
+        # first, then re-raise so run() logs it and --once still exits non-zero.
+        poll_error = None
+        try:
+            self.bot_profile_id = self.design.get_profile_id()
+            self._poll()
+            self._process_threads()
+        except Exception as error:
+            poll_error = error
         self._process_jobs()
+        if poll_error is not None:
+            raise poll_error
         self.logger.info("poll cycle: done")
 
     # -- baseline (AC-3) ---------------------------------------------------
@@ -75,7 +84,8 @@ class Bot:
                     comment_id = comment["id"]
                     if self.state.is_seen(comment_id):
                         continue
-                    title = parse_task_command(comment, self.config.owner_id, self.bot_profile_id)
+                    command_text = self.design.command_text(comment, self.bot_profile_id)
+                    title = parse_task_command(comment, self.config.owner_id, command_text)
                     if title is None:
                         self.state.apply_comment(comment_id, now)
                         continue
@@ -165,11 +175,11 @@ class Bot:
             now = self.clock.now()
             last = thread["last_empty_at"]
             if last is not None and now - last >= self.search_gap:
-                text = (
-                    "figmapot: no Jira issue found for thread %s (comment %s) after two empty searches. "
-                    "Manual action needed." % (thread["thread_id"], thread["comment_id"])
+                notice = self._notice(
+                    "needs_manual", thread,
+                    thread_id=thread["thread_id"], comment_id=thread["comment_id"],
                 )
-                self.state.mark_needs_manual(thread["thread_id"], now, [("telegram_alert", {"text": text})])
+                self.state.mark_needs_manual(thread["thread_id"], now, [("telegram_alert", {"notice": notice})])
                 self.logger.warning("thread %s needs manual action", thread["thread_id"])
             else:
                 self.state.record_empty_search(thread["thread_id"], now)
@@ -199,12 +209,25 @@ class Bot:
             "threadId": thread["thread_id"],
             "commentId": thread["comment_id"],
         }
-        message = "New figmapot issue %s: %s\n%s\n%s" % (issue_key, thread["title"], issue_url, board)
         return [
             ("property", {"key": issue_key, "props": properties}),
             ("penpot_reply", {"threadId": thread["thread_id"], "content": reply_text(issue_key, issue_url)}),
-            ("telegram_message", {"text": message}),
+            ("telegram_message", {"notice": self._notice("issue_created", thread, issue_key, issue_url)}),
         ]
+
+    def _notice(self, kind, thread, issue_key=None, issue_url=None, **extra):
+        """A neutral notice the chat adapter renders at send time (AC-2)."""
+        board = self._board_link(thread)
+        notice = {
+            "kind": kind,
+            "title": thread["title"],
+            "issue_key": issue_key,
+            "issue_url": issue_url,
+            "board_url": board,
+            "thread_url": build_thread_link(board, thread["thread_id"]),
+        }
+        notice.update(extra)
+        return notice
 
     # -- delivery jobs (AC-6) ----------------------------------------------
     def _process_jobs(self):
@@ -236,7 +259,7 @@ class Bot:
         elif kind == "penpot_reply":
             self.design.create_comment(payload["threadId"], payload["content"], [])
         elif kind in ("telegram_message", "telegram_alert"):
-            self.chat.send_message(payload["text"])
+            self.chat.send_message(payload.get("text"), notice=payload.get("notice"))
         else:
             raise RuntimeError("unknown job kind %r" % kind)
 
