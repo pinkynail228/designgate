@@ -13,7 +13,6 @@ binding nor advance the offset past an update that was not applied.
 from __future__ import annotations
 
 import json
-import os
 import re
 import secrets
 
@@ -24,10 +23,6 @@ from .httpclient import RetryableError, single_request
 CODE_TTL = 7 * 24 * 60 * 60
 CODE_BYTES = 16
 CODE_PATTERN = re.compile(r"\A[A-Za-z0-9_\-]{%d,}\Z" % CODE_BYTES)
-
-# ``people.json`` (the person directory) is owned by another card; only its keys
-# matter here. The path follows the env-file convention of ``config.py``.
-DEFAULT_PEOPLE_PATH = "~/.config/figmapot-bot/people.json"
 
 # ``onboarding_meta`` key holding the highest applied ``update_id``.
 OFFSET_KEY = "telegram_offset"
@@ -65,45 +60,19 @@ def link(bot_username, code):
     return "https://t.me/%s?start=%s" % (bot_username.lstrip("@"), code)
 
 
-def load_people(path=None):
-    """The person keys in the people file, or ``None`` when it is not configured."""
-    path = os.path.expanduser(path or DEFAULT_PEOPLE_PATH)
-    if not os.path.exists(path):
-        return None
-    with open(path, "r", encoding="utf-8") as handle:
-        return people_keys(json.load(handle))
-
-
-def people_keys(document):
-    """The keys of a people document, in any of its plausible shapes.
-
-    ``{"alice": {...}}``, ``{"people": {"alice": {...}}}``, ``["alice"]`` and
-    ``{"people": [{"key": "alice"}]}`` all yield ``{"alice"}``; the exact format
-    lands with the people card.
-    """
-    people = document.get("people", document) if isinstance(document, dict) else document
-    if isinstance(people, dict):
-        return set(people)
-    keys = set()
-    for item in people or ():
-        if isinstance(item, str):
-            keys.add(item)
-        elif isinstance(item, dict) and item.get("key"):
-            keys.add(item["key"])
-    return keys
-
-
-def onboard(state, telegram, person_key, now, people_loader=load_people):
+def onboard(state, telegram, person_key, now, directory=None):
     """Issue a code for ``person_key`` and return the deep link to send them.
 
-    ``people_loader`` is called without arguments and returns the known person
-    keys (or ``None`` when the people file is not configured); an unknown key is
-    refused before any code is issued.
+    ``directory`` is the loaded people directory (``people.load(PEOPLE_FILE)``);
+    a key it cannot resolve is refused before any code is issued. The code and
+    the later binding use the resolved person's key, so a differently-cased
+    spelling still matches the key the assignment path looks up.
     """
-    if people_loader is not None:
-        people = people_loader()
-        if people is not None and person_key not in people:
+    if directory is not None:
+        person = directory.resolve(person_key)
+        if person is None:
             raise OnboardingError("unknown person key: %s" % person_key)
+        person_key = person.key
     username = get_bot_username(telegram)
     code = issue_code(state, person_key, now)
     logger = getattr(telegram, "logger", None)

@@ -342,20 +342,40 @@ class TelegramError(Exception):
 
 def render_notice(notice):
     """Render a neutral notice payload into today's Telegram text."""
-    kind = (notice or {}).get("kind")
+    notice = notice or {}
+    kind = notice.get("kind")
     if kind == "issue_created":
-        return "New figmapot issue %s: %s\n%s\n%s" % (
+        text = "New figmapot issue %s: %s\n%s\n%s" % (
             notice.get("issue_key"),
             notice.get("title"),
             notice.get("issue_url"),
             notice.get("board_url"),
         )
+        details = _assignee_line(notice)
+        if details:
+            text += "\n" + details
+        return text
+    if kind == "assigned":
+        text = "Penpot: you are assigned %s: %s" % (notice.get("issue_key"), notice.get("title"))
+        if notice.get("due"):
+            text += ", due %s" % notice.get("due")
+        return text
     if kind == "needs_manual":
         return (
             "figmapot: no Jira issue found for thread %s (comment %s) after two empty searches. "
             "Manual action needed." % (notice.get("thread_id"), notice.get("comment_id"))
         )
     raise TelegramError("unknown notice kind %r" % (kind,))
+
+
+def _assignee_line(notice):
+    """``Assignee: <name>, due <date>`` for the parts the notice carries, else ""."""
+    parts = []
+    if notice.get("assignee_name"):
+        parts.append("Assignee: %s" % notice.get("assignee_name"))
+    if notice.get("due"):
+        parts.append("due %s" % notice.get("due"))
+    return ", ".join(parts)
 
 
 class TelegramClient:
@@ -374,12 +394,17 @@ class TelegramClient:
         self.rng = rng
         self.opener = opener if opener is not None else build_opener()
 
-    def send_message(self, text=None, notice=None):
-        """Send ``text``, or render the neutral ``notice`` and send that."""
+    def send_message(self, text=None, notice=None, chat_id=None):
+        """Send ``text``, or render the neutral ``notice`` and send that.
+
+        ``chat_id`` defaults to the configured group chat; a private delivery
+        passes the recipient's chat id explicitly.
+        """
         if notice is not None:
             text = render_notice(notice)
+        target = self.chat_id if chat_id is None else chat_id
         url = "%s/bot%s/sendMessage" % (self.api_base, self.bot_token)
-        body = json.dumps({"chat_id": self.chat_id, "text": text}).encode("utf-8")
+        body = json.dumps({"chat_id": target, "text": text}).encode("utf-8")
         try:
             response = single_request(
                 self.opener, "POST", url, data=body, headers={"Content-Type": "application/json"},

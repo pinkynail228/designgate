@@ -286,6 +286,9 @@ class FakeJira(FakeHttp):
         self.project_key = project_key
         self.issues = []
         self._next_number = 1
+        # ``None`` means every account is assignable; a set restricts it.
+        self.assignable_account_ids = None
+        self.fail_assignable = False
         self.search_issues = None
         self.search_body = None
         self.fail_search_times = 0
@@ -312,6 +315,14 @@ class FakeJira(FakeHttp):
         return [req.json() for req in self.recorded("POST", "/rest/api/3/issue")]
 
     def route(self, method, path, headers, body):
+        if method == "GET" and path.startswith("/rest/api/3/user/assignable/search"):
+            query = urllib.parse.parse_qs(urllib.parse.urlsplit(path).query)
+            account_id = (query.get("accountId") or [None])[0]
+            if self.fail_assignable:
+                return self.json_response(500, {"errorMessages": ["boom"]})
+            if self.assignable_account_ids is None or account_id in self.assignable_account_ids:
+                return self.json_response(200, [{"accountId": account_id}])
+            return self.json_response(200, [])
         if method == "POST" and path == "/rest/api/3/issue":
             if self.drop_post:
                 return DROP
@@ -383,12 +394,22 @@ class FakeTelegram(FakeHttp):
     def __init__(self):
         self.messages = []
         self.delivered = []
+        self.updates = []
+        self.username = "figmapot_bot"
+        self.fail_updates = False
         self.fail_times = 0
         self.fail_status = 500
         self.retry_after = None
         super().__init__()
 
     def route(self, method, path, headers, body):
+        if method == "POST" and "/getUpdates" in path:
+            if self.fail_updates:
+                return self.json_response(200, {"ok": False, "description": "boom"})
+            # Offsets are the poller's business; the fake replays its batch.
+            return self.json_response(200, {"ok": True, "result": list(self.updates)})
+        if method == "POST" and "/getMe" in path:
+            return self.json_response(200, {"ok": True, "result": {"username": self.username}})
         if method != "POST" or "/sendMessage" not in path:
             return self.json_response(404, {"ok": False})
         data = json.loads(body.decode("utf-8"))

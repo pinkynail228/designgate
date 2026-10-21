@@ -38,6 +38,12 @@ CREATE TABLE IF NOT EXISTS threads (
     next_search_at REAL,
     updated_at     REAL
 );
+CREATE TABLE IF NOT EXISTS thread_task (
+    thread_id           TEXT PRIMARY KEY,
+    assignee_key        TEXT,
+    assignee_account_id TEXT,
+    due                 TEXT
+);
 CREATE TABLE IF NOT EXISTS jobs (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
     kind       TEXT NOT NULL,
@@ -161,6 +167,21 @@ class State:
                         seen_at,
                     ),
                 )
+                # The assignee/due of the reservation live in an additive table
+                # (an upgrade never rewrites the rows written before it). A row
+                # is only written when the command actually carries one, so a
+                # plain ``task <title>`` keeps today's create-issue call.
+                if reservation.get("assignee_key") or reservation.get("due"):
+                    self.conn.execute(
+                        "INSERT OR IGNORE INTO thread_task"
+                        "(thread_id, assignee_key, assignee_account_id, due) VALUES (?, ?, ?, ?)",
+                        (
+                            reservation["thread_id"],
+                            reservation.get("assignee_key"),
+                            reservation.get("assignee_account_id"),
+                            reservation.get("due"),
+                        ),
+                    )
             self._insert_jobs(jobs, seen_at)
 
     def commit_baseline(self, seen_items, bot_profile_id):
@@ -194,6 +215,13 @@ class State:
         else:
             rows = self.conn.execute("SELECT * FROM threads ORDER BY updated_at").fetchall()
         return [dict(row) for row in rows]
+
+    def get_thread_task(self, thread_id):
+        """The assignee/due reserved for a thread, or ``None`` when it has none."""
+        row = self.conn.execute(
+            "SELECT * FROM thread_task WHERE thread_id = ?", (thread_id,)
+        ).fetchone()
+        return dict(row) if row else None
 
     def set_thread_state(self, thread_id, state):
         self.conn.execute(

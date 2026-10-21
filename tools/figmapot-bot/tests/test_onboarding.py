@@ -28,9 +28,7 @@ from figmapot_bot.onboarding import (
     last_update_id,
     link,
     list_bindings,
-    load_people,
     onboard,
-    people_keys,
     poll_updates,
 )
 from figmapot_bot.state import State
@@ -348,18 +346,7 @@ class RebindTests(OnboardingTestCase):
         self.assertEqual((bindings[0]["chat_id"], bindings[0]["user_id"]), (222, 9))
 
 
-class PeopleFileTests(unittest.TestCase):
-    def test_missing_file_means_no_check(self):
-        self.assertIsNone(load_people(os.path.join(tempfile.gettempdir(), "no-such-people.json")))
-
-    def test_reads_every_plausible_shape(self):
-        self.assertEqual(people_keys({"alice": {}, "bob": {}}), {"alice", "bob"})
-        self.assertEqual(people_keys({"people": {"alice": {}}}), {"alice"})
-        self.assertEqual(people_keys(["alice", "bob"]), {"alice", "bob"})
-        self.assertEqual(people_keys({"people": [{"key": "alice"}]}), {"alice"})
-
-
-def write_env(directory, db_path):
+def write_env(directory, db_path, people_path=None):
     path = os.path.join(directory, "env")
     lines = [
         "PENPOT_URL=http://penpot.test",
@@ -378,6 +365,8 @@ def write_env(directory, db_path):
         "STATE_DB=%s" % db_path,
         "POLL_SECONDS=0",
     ]
+    if people_path is not None:
+        lines.append("PEOPLE_FILE=%s" % people_path)
     with open(path, "w", encoding="utf-8") as handle:
         handle.write("\n".join(lines) + "\n")
     return path
@@ -388,12 +377,22 @@ class _StubBot:
         self.once = once
 
 
+def write_people(path, *entries):
+    with open(path, "w", encoding="utf-8") as handle:
+        json.dump({"people": list(entries)}, handle)
+    return path
+
+
+ALICE = {"key": "alice", "name": "Alice", "jira_account_id": "jira-alice"}
+
+
 class CliTests(OnboardingTestCase):
     def setUp(self):
         super().setUp()
         # The CLI opens its own state file, so the harness keeps its own lock.
         self.cli_db_path = os.path.join(self.tmp, "cli-state.db")
-        self.env_path = write_env(self.tmp, self.cli_db_path)
+        self.people_path = write_people(os.path.join(self.tmp, "people.json"), ALICE)
+        self.env_path = write_env(self.tmp, self.cli_db_path, self.people_path)
 
     def run_cli(self, argv, replies):
         opener = FakeOpener(replies)
@@ -433,27 +432,31 @@ class CliTests(OnboardingTestCase):
         self.open_state(self.cli_db_path)
 
     def test_onboard_refuses_an_unknown_person_key(self):
-        people = os.path.join(self.tmp, "people.json")
-        with open(people, "w", encoding="utf-8") as handle:
-            json.dump({"people": {"bob": {}}}, handle)
-        with mock.patch("figmapot_bot.onboarding.DEFAULT_PEOPLE_PATH", people):
-            status, out, err, opener = self.run_cli(["onboard", "alice"], [])
+        status, out, err, opener = self.run_cli(["onboard", "bob"], [])
         self.assertNotEqual(status, 0)
         self.assertEqual(out, "")
-        self.assertIn("alice", err)
+        self.assertIn("bob", err)
         self.assertEqual(opener.requests, [])
         self.assertEqual(self.issued_codes(), [])
 
     def test_onboard_accepts_a_known_person_key(self):
-        people = os.path.join(self.tmp, "people.json")
-        with open(people, "w", encoding="utf-8") as handle:
-            json.dump({"people": {"alice": {}}}, handle)
-        with mock.patch("figmapot_bot.onboarding.DEFAULT_PEOPLE_PATH", people):
-            status, out, _, _ = self.run_cli(
-                ["onboard", "alice"], [json_reply(200, {"ok": True, "result": {"username": "figmapot_bot"}})]
-            )
+        status, out, _, _ = self.run_cli(
+            ["onboard", "alice"], [json_reply(200, {"ok": True, "result": {"username": "figmapot_bot"}})]
+        )
         self.assertEqual(status, 0)
         self.assertTrue(out.startswith("https://t.me/figmapot_bot?start="))
+
+    def test_a_broken_people_file_stops_the_start(self):
+        broken = os.path.join(self.tmp, "broken-people.json")
+        with open(broken, "w", encoding="utf-8") as handle:
+            handle.write("{not json")
+        write_env(self.tmp, self.cli_db_path, broken)
+        status, out, err, opener = self.run_cli(["--once"], [])
+        self.assertEqual(status, 2)
+        self.assertEqual(out, "")
+        self.assertIn("broken-people.json", err)
+        self.assertIn("not valid JSON", err)
+        self.assertEqual(opener.requests, [])
 
     def test_onboard_refuses_while_the_bot_holds_the_lock(self):
         self.open_state(self.cli_db_path)  # the running bot holds the lock
@@ -485,13 +488,13 @@ class SecretsTests(OnboardingTestCase):
     def test_the_token_never_reaches_logs_or_errors(self):
         client, _ = self.client([json_reply(401, {"ok": False, "description": "Unauthorized"})])
         with self.assertRaises(OnboardingError) as raised:
-            onboard(self.state, client, "alice", self.clock.now(), people_loader=lambda: None)
+            onboard(self.state, client, "alice", self.clock.now())
         self.assertNotIn(TOKEN, str(raised.exception))
         self.assertNotIn(TOKEN, self.log_stream.getvalue())
 
     def test_a_code_is_logged_only_by_its_first_four_characters(self):
         client, _ = self.client([json_reply(200, {"ok": True, "result": {"username": "figmapot_bot"}})])
-        url = onboard(self.state, client, "alice", self.clock.now(), people_loader=lambda: None)
+        url = onboard(self.state, client, "alice", self.clock.now())
         code = self.issued_codes()[0]
         self.assertEqual(url, link("figmapot_bot", code))
         logs = self.log_stream.getvalue()
@@ -524,7 +527,7 @@ class TelegramErrorTests(OnboardingTestCase):
     def test_a_webhook_conflict_does_not_count_as_success(self):
         client, _ = self.client([json_reply(409, {"ok": False, "description": "Conflict"})])
         with self.assertRaises(OnboardingError):
-            onboard(self.state, client, "alice", self.clock.now(), people_loader=lambda: None)
+            onboard(self.state, client, "alice", self.clock.now())
 
     def test_rate_limit_uses_the_existing_retry_after_handling(self):
         client, _ = self.client([json_reply(429, {"ok": False, "parameters": {"retry_after": 13}})])

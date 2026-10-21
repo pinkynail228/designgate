@@ -5,11 +5,13 @@ import argparse
 import logging
 import sys
 
+from . import people
 from .adapters import JiraClient, PenpotClient, TelegramClient
 from .bot import Bot
 from .clock import Clock
 from .config import ConfigError, load_config
-from .onboarding import OnboardingError, load_people, onboard
+from .onboarding import OnboardingError, onboard
+from .people import PeopleError
 from .state import AlreadyRunning, State
 
 LOG_FORMAT = "%(asctime)s %(levelname)s %(message)s"
@@ -38,20 +40,31 @@ def build_bot(config, logger):
         logger,
         api_base=config.telegram_api_base,
     )
+    # An unreadable people file is a configuration problem: it stops the start
+    # like a missing key, before the state lock is taken.
+    try:
+        directory = people.load(config.people_file)
+    except PeopleError as error:
+        raise ConfigError(str(error))
     state = State(config.state_db, clock)
-    return Bot(config, clock, state, design, tracker, chat, logger)
+    return Bot(config, clock, state, design, tracker, chat, logger, directory=directory)
 
 
-def run_onboard(person_key, logger, people_loader=load_people):
+def run_onboard(person_key, logger):
     """``onboard <person_key>``: print the one-time deep link and exit.
 
     It takes the state lock like the bot does, so it runs while the bot is
-    stopped; the person directory is read through ``people_loader`` (``None``
-    means no check).
+    stopped; the key is checked against ``people.load(PEOPLE_FILE)``.
     """
     try:
         config = load_config()
     except ConfigError as error:
+        print("figmapot-bot: %s" % error, file=sys.stderr)
+        return 2
+
+    try:
+        directory = people.load(config.people_file)
+    except PeopleError as error:
         print("figmapot-bot: %s" % error, file=sys.stderr)
         return 2
 
@@ -69,7 +82,7 @@ def run_onboard(person_key, logger, people_loader=load_people):
         print("figmapot-bot: %s" % error, file=sys.stderr)
         return 3
     try:
-        url = onboard(state, chat, person_key, clock.now(), people_loader=people_loader)
+        url = onboard(state, chat, person_key, clock.now(), directory=directory)
     except OnboardingError as error:
         print("figmapot-bot: %s" % error, file=sys.stderr)
         return 4
@@ -104,6 +117,9 @@ def main(argv=None):
 
     try:
         bot = build_bot(config, logger)
+    except ConfigError as error:
+        print("figmapot-bot: %s" % error, file=sys.stderr)
+        return 2
     except AlreadyRunning as error:
         print("figmapot-bot: %s" % error, file=sys.stderr)
         return 3

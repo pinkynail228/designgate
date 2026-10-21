@@ -7,7 +7,7 @@ import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from figmapot_bot.config import ConfigError, load_config, parse_env_file
+from figmapot_bot.config import ConfigError, load_config, local_date, parse_env_file
 from figmapot_bot.adapters import PenpotError
 
 from tests.support import FILE_A, Harness
@@ -150,6 +150,40 @@ class ConfigTests(unittest.TestCase):
                 load_config(environ={"FIGMAPOT_BOT_ENV": path}, env_path=path)
             self.assertIn("TELEGRAM_BOT_TOKEN", str(caught.exception))
             self.assertNotIn("secret token value", str(caught.exception))
+
+
+class OptionalPeopleTests(unittest.TestCase):
+    """AC-1: ``PEOPLE_FILE`` and ``BOT_TIMEZONE`` are optional keys with defaults."""
+
+    def load(self, values):
+        import tempfile
+
+        directory = tempfile.mkdtemp(prefix="figmapot-people-file-")
+        self.addCleanup(__import__("shutil").rmtree, directory, True)
+        path = write_env(directory, values)
+        return load_config(environ={"FIGMAPOT_BOT_ENV": path}, env_path=path)
+
+    def test_people_file_is_unset_by_default(self):
+        self.assertIsNone(self.load(FULL_ENV).people_file)
+
+    def test_people_file_is_read_from_the_env(self):
+        values = dict(FULL_ENV, PEOPLE_FILE="~/people.json")
+        self.assertTrue(self.load(values).people_file.endswith("people.json"))
+
+    def test_bot_timezone_defaults_to_moscow(self):
+        self.assertEqual(self.load(FULL_ENV).bot_timezone, "Europe/Moscow")
+
+    def test_bot_timezone_can_be_overridden(self):
+        self.assertEqual(self.load(dict(FULL_ENV, BOT_TIMEZONE="UTC")).bot_timezone, "UTC")
+
+    def test_an_unknown_timezone_is_rejected(self):
+        with self.assertRaises(ConfigError) as caught:
+            self.load(dict(FULL_ENV, BOT_TIMEZONE="Mars/Olympus"))
+        self.assertIn("BOT_TIMEZONE", str(caught.exception))
+
+    def test_local_date_reads_the_date_in_the_zone(self):
+        self.assertEqual(local_date("Europe/Moscow", 0.0), "1970-01-01")
+        self.assertEqual(local_date("UTC", 0.0), "1970-01-01")
 
 
 if __name__ == "__main__":

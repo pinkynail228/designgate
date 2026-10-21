@@ -4,6 +4,7 @@ from __future__ import annotations
 import contextlib
 import http.cookiejar
 import io
+import json
 import logging
 import os
 import shutil
@@ -12,6 +13,7 @@ import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from figmapot_bot import people as people_module
 from figmapot_bot.adapters import JiraClient, PenpotClient, TelegramClient
 from figmapot_bot.bot import Bot
 from figmapot_bot.clock import FakeClock
@@ -38,10 +40,11 @@ def make_logger(stream):
 
 
 class Harness:
-    def __init__(self, files=(FILE_A,)):
+    def __init__(self, files=(FILE_A,), people=None):
         self.tmp = tempfile.mkdtemp(prefix="figmapot-test-")
         self.db_path = os.path.join(self.tmp, "state.db")
         self.env_path = os.path.join(self.tmp, "env")
+        self.people_path = None
         self.clock = FakeClock()
         self.penpot = FakePenpot(profile_id=BOT_PROFILE_ID)
         self.jira = FakeJira()
@@ -51,11 +54,18 @@ class Harness:
         self.file_ids = list(files)
         for file_id in self.file_ids:
             self.penpot.add_file(file_id)
+        if people is not None:
+            self._write_people(people)
         self._write_env()
         self.config = load_config(environ={"FIGMAPOT_BOT_ENV": self.env_path}, env_path=self.env_path)
         self.state = State(self.db_path, self.clock)
         self._open = True
         self.bot = self._build_bot()
+
+    def _write_people(self, people):
+        self.people_path = os.path.join(self.tmp, "people.json")
+        with open(self.people_path, "w", encoding="utf-8") as handle:
+            json.dump({"people": list(people)}, handle)
 
     def _write_env(self):
         lines = [
@@ -76,6 +86,8 @@ class Harness:
             "STATE_DB=%s" % self.db_path,
             "POLL_SECONDS=0",
         ]
+        if self.people_path is not None:
+            lines.append("PEOPLE_FILE=%s" % self.people_path)
         with open(self.env_path, "w", encoding="utf-8") as handle:
             handle.write("\n".join(lines) + "\n")
 
@@ -94,7 +106,9 @@ class Harness:
             self.config.telegram_bot_token, self.config.telegram_chat_id, self.clock, self.logger,
             api_base=self.telegram.url, opener=build_fake_opener(fakes),
         )
-        return Bot(self.config, self.clock, self.state, design, tracker, chat, self.logger)
+        directory = people_module.load(self.config.people_file)
+        return Bot(self.config, self.clock, self.state, design, tracker, chat, self.logger,
+                   directory=directory)
 
     def cycle(self):
         self.bot.cycle()
@@ -116,10 +130,22 @@ class Harness:
         self.release()
         self.reopen()
 
-    def command_comment(self, thread_id, comment_id, title="Fix the header"):
-        content = "@[FigmaPot Bot](%s) task %s" % (BOT_PROFILE_ID, title)
+    def command_comment(self, thread_id, comment_id, title="Fix the header", command=None):
+        body = command if command is not None else ("task %s" % title)
+        content = "@[FigmaPot Bot](%s) %s" % (BOT_PROFILE_ID, body)
         self.penpot.add_comment(thread_id, comment_id, OWNER_ID, content, [BOT_PROFILE_ID])
         return content
+
+    def bind_chat(self, person_key, chat_id, user_id=7):
+        """Bind a person's private chat the way the onboarding poll would."""
+        with self.state.transaction():
+            self.state.conn.execute(
+                "INSERT INTO onboarding_bindings(person_key, chat_id, user_id, bound_at) "
+                "VALUES (?, ?, ?, ?) "
+                "ON CONFLICT(person_key) DO UPDATE SET chat_id = excluded.chat_id, "
+                "user_id = excluded.user_id, bound_at = excluded.bound_at",
+                (person_key, chat_id, user_id, self.clock.now()),
+            )
 
     def logs(self):
         return self.log_stream.getvalue()

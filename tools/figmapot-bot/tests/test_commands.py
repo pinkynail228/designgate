@@ -1,4 +1,8 @@
-"""AC-2: command detection rules and the edit rule; BOT-X AC-1: addressing split."""
+"""AC-2: command detection rules and the edit rule; BOT-X AC-1: addressing split.
+
+The adapter owns the Penpot addressing; ``commands.owner_command`` keeps the
+owner check; ``grammar.parse_task`` owns the ``task`` grammar.
+"""
 from __future__ import annotations
 
 import os
@@ -8,22 +12,28 @@ import unittest
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from figmapot_bot.adapters import PenpotClient
-from figmapot_bot.commands import parse_task_command
+from figmapot_bot.commands import owner_command
+from figmapot_bot.grammar import ParseError, ParsedTask, parse_task
 
 from tests.support import BOT_PROFILE_ID, OWNER_ID, Harness
 
 OTHER_ID = "other-uuid"
 MENTION = "@[FigmaPot Bot](%s)" % BOT_PROFILE_ID
+TODAY = "2026-10-21"
 
 
 def comment(owner_id, content, mentions):
     return {"id": "c1", "ownerId": owner_id, "content": content, "mentions": list(mentions)}
 
 
+def command_text(comment, owner_id=OWNER_ID, bot_profile_id=BOT_PROFILE_ID):
+    """Penpot addressing (adapter) plus the owner check (core)."""
+    return owner_command(comment, owner_id, PenpotClient.command_text(comment, bot_profile_id))
+
+
 def parse(comment, owner_id=OWNER_ID, bot_profile_id=BOT_PROFILE_ID):
-    """Penpot addressing (adapter) plus the owner check and grammar (core)."""
-    command_text = PenpotClient.command_text(comment, bot_profile_id)
-    return parse_task_command(comment, owner_id, command_text)
+    text = command_text(comment, owner_id, bot_profile_id)
+    return None if text is None else parse_task(text, TODAY)
 
 
 class AddressingTests(unittest.TestCase):
@@ -55,25 +65,27 @@ class AddressingTests(unittest.TestCase):
         self.assertIsNone(PenpotClient.command_text(comment(OWNER_ID, content, [OTHER_ID]), BOT_PROFILE_ID))
 
 
-class ParseTests(unittest.TestCase):
+class OwnerCommandTests(unittest.TestCase):
+    """AC-2: only the owner's comments are commands."""
+
     def test_valid_command(self):
         self.assertEqual(
             parse(comment(OWNER_ID, MENTION + " task Fix the header", [BOT_PROFILE_ID])),
-            "Fix the header",
+            ParsedTask(title="Fix the header"),
         )
 
     def test_penpot_zero_width_spaces_around_mention(self):
         # Real Penpot 2.18 content: the editor wraps the mention in U+200B.
         content = "\u200b" + MENTION + " \u200btask Проверка бота"
-        self.assertEqual(parse(comment(OWNER_ID, content, [BOT_PROFILE_ID])), "Проверка бота")
+        self.assertEqual(parse(comment(OWNER_ID, content, [BOT_PROFILE_ID])), ParsedTask(title="Проверка бота"))
 
     def test_case_insensitive_task_and_title_trimmed(self):
         content = MENTION + "   TaSk    Fix  the header   "
-        self.assertEqual(parse(comment(OWNER_ID, content, [BOT_PROFILE_ID])), "Fix  the header")
+        self.assertEqual(parse(comment(OWNER_ID, content, [BOT_PROFILE_ID])), ParsedTask(title="Fix  the header"))
 
     def test_newlines_in_title_become_spaces(self):
         content = MENTION + " task line one\nline two"
-        self.assertEqual(parse(comment(OWNER_ID, content, [BOT_PROFILE_ID])), "line one line two")
+        self.assertEqual(parse(comment(OWNER_ID, content, [BOT_PROFILE_ID])), ParsedTask(title="line one line two"))
 
     def test_bots_own_reply_is_not_a_command(self):
         content = "@[Owner](%s) task something" % OWNER_ID
@@ -96,9 +108,9 @@ class ParseTests(unittest.TestCase):
         self.assertIsNone(parse(comment(OWNER_ID, content, [BOT_PROFILE_ID])))
 
     def test_title_too_long_or_empty(self):
-        self.assertIsNone(parse(comment(OWNER_ID, MENTION + " task " + "x" * 201, [BOT_PROFILE_ID])))
-        self.assertIsNone(parse(comment(OWNER_ID, MENTION + " task   ", [BOT_PROFILE_ID])))
-        self.assertIsNone(parse(comment(OWNER_ID, MENTION + " task", [BOT_PROFILE_ID])))
+        self.assertEqual(parse(comment(OWNER_ID, MENTION + " task " + "x" * 201, [BOT_PROFILE_ID])), ParseError("title"))
+        self.assertEqual(parse(comment(OWNER_ID, MENTION + " task   ", [BOT_PROFILE_ID])), ParseError("title"))
+        self.assertEqual(parse(comment(OWNER_ID, MENTION + " task", [BOT_PROFILE_ID])), ParseError("title"))
 
 
 class EditTests(unittest.TestCase):

@@ -7,11 +7,14 @@ and the config ``repr`` masks every secret field.
 """
 from __future__ import annotations
 
+import datetime
 import os
+import zoneinfo
 
 DEFAULT_ENV_PATH = "~/.config/figmapot-bot/env"
 DEFAULT_STATE_DB = "~/.local/state/figmapot-bot/state.db"
 DEFAULT_TELEGRAM_API_BASE = "https://api.telegram.org"
+DEFAULT_TIMEZONE = "Europe/Moscow"
 
 REQUIRED_KEYS = (
     "PENPOT_URL",
@@ -35,6 +38,9 @@ DEFAULTS = {
     "STATE_DB": DEFAULT_STATE_DB,
     "POLL_SECONDS": "30",
     "TELEGRAM_API_BASE": DEFAULT_TELEGRAM_API_BASE,
+    # Optional person directory; unset means an empty directory (no assignees).
+    "PEOPLE_FILE": "",
+    "BOT_TIMEZONE": DEFAULT_TIMEZONE,
 }
 
 # Keys whose value must never reach logs, error messages or exceptions.
@@ -94,6 +100,8 @@ class Config:
         self.telegram_api_base = values["TELEGRAM_API_BASE"] or DEFAULT_TELEGRAM_API_BASE
         self.state_db = os.path.expanduser(values["STATE_DB"])
         self.poll_seconds = float(values["POLL_SECONDS"])
+        self.people_file = os.path.expanduser(values["PEOPLE_FILE"]) or None
+        self.bot_timezone = values["BOT_TIMEZONE"] or DEFAULT_TIMEZONE
 
     def __repr__(self):
         parts = []
@@ -135,7 +143,19 @@ def load_config(environ=None, env_path=None):
         float(values["POLL_SECONDS"])
     except ValueError:
         raise ConfigError("POLL_SECONDS must be a number")
+    try:
+        zoneinfo.ZoneInfo(values["BOT_TIMEZONE"])
+    except Exception:
+        # The name is validated here so a typo stops the start instead of
+        # crashing on the first command.
+        raise ConfigError("BOT_TIMEZONE must be a known IANA timezone name")
     return Config(values, env_path=path)
+
+
+def local_date(timezone_name, epoch_seconds):
+    """The calendar date (ISO ``YYYY-MM-DD``) at ``epoch_seconds`` in a zone."""
+    moment = datetime.datetime.fromtimestamp(epoch_seconds, zoneinfo.ZoneInfo(timezone_name))
+    return moment.date().isoformat()
 
 
 def required_key_names():
